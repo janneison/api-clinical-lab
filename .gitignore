@@ -3,6 +3,8 @@
 /vendor/*
 /config/app.php
 
+/.phpunit.result.cache
+
 /tmp/cache/models/*
 !/tmp/cache/models/empty
 /tmp/cache/persistent/*

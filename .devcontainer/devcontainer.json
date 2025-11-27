@@ -1,0 +1,17 @@
+{
+  "name": "api-clinical-lab",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+  "postCreateCommand": "composer install && pre-commit install",
+  "remoteUser": "vscode",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "bmewburn.vscode-intelephense-client",
+        "xdebug.php-pack"
+      ]
+    }
+  }
+}
