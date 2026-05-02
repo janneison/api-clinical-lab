@@ -1,40 +1,70 @@
 # API Clinical Lab
 
-Módulo de laboratorio clínico basado en PHP 8.2 y MySQL siguiendo arquitectura hexagonal (dominio, aplicación y puertos/adaptadores). Incluye autenticación segura y consideraciones OWASP para el flujo completo de órdenes y resultados.
+Módulo de laboratorio clínico en PHP 8.2 + MySQL con arquitectura hexagonal y Slim 4 como capa HTTP.
 
-## Componentes de dominio
-- **LabOrder** y **LabOrderDetail** representan la solicitud y sus exámenes.
-- **LabResult** almacena valores estructurados y adjuntos.
-- **Repositorios de dominio** definen contratos para persistencia y consumo de APIs.
+## Estructura
 
-## Casos de uso
-- **CreateLabOrderUseCase**: crea la orden y sus detalles a partir de DTOs validados.
-- **SendLabOrderUseCase**: envía la orden al laboratorio aliado vía API segura (API Key + JWT de corta duración) y marca fecha de envío/estado.
-- **ValidateAndStoreResultUseCase**: valida estructura mínima del resultado, persiste valores y actualiza el progreso al 100%.
-
-## Adaptadores de infraestructura
-- **PDO (MySQL)** para persistencia (`MySqlLabOrderRepository`, `MySqlLabOrderDetailRepository`, `MySqlLabResultRepository`). Se usan *prepared statements* y JSON para resultados.
-- **ExternalLabApiClient**: cliente HTTP que firma la petición con API Key y JWT (HS256) y envía el payload JSON al endpoint `/orders`.
-- **PdoConnectionFactory**: crea conexiones tomando las variables de entorno (`config/.env.example`).
-
-## Seguridad y OWASP
-- Uso de JWT efímero (5 minutos) y API Key almacenada de forma protegida.
-- TLS obligatorio (`CURLOPT_SSL_VERIFYPEER=true`).
-- Preparación de sentencias para prevenir inyección SQL y codificación JSON estricta.
-- Loggear y auditar solicitudes/respuestas en los adaptadores según el despliegue del gateway.
-
-## Esquema de base de datos
-Consulta `docs/schema.sql` para crear tablas de usuarios, órdenes, detalles y resultados. Incluye claves foráneas, control de versiones mediante `updated_at` y columnas para adjuntos/JSON.
-
-## Ejemplo de inicialización
-```bash
-cp config/.env.example .env
-composer install
-# Crear tablas
-mysql -u$DB_USERNAME -p$DB_PASSWORD $DB_NAME < docs/schema.sql
+```
+public/          ← DocumentRoot del hosting (solo esta carpeta es pública)
+  index.php      ← Punto de entrada
+  .htaccess      ← Rewrite rules para Slim
+src/
+  Application/   ← Casos de uso y DTOs
+  Domain/        ← Entidades, interfaces de repositorios
+  Infrastructure/← PDO, HTTP client, controladores, middleware
+config/
+  .env           ← Variables de entorno (NO subir a git)
+  .env.example   ← Plantilla
+docs/
+  schema.sql     ← Tablas MySQL
 ```
 
-## Próximos pasos sugeridos
-- Exponer controladores HTTP (framework al gusto) que instancien los casos de uso con dependencias reales.
-- Añadir colas para reintentos automáticos y un listener de webhook `/results` para el aliado.
-- Implementar validaciones adicionales de datos clínicos y conversión de unidades en el dominio.
+## Endpoints
+
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| POST | `/orders` | Crear orden de laboratorio |
+| GET | `/orders/{id}` | Consultar orden |
+| POST | `/orders/{id}/send` | Enviar al laboratorio externo |
+| POST | `/results` | Registrar resultado |
+
+Todos los endpoints requieren el header `X-API-KEY`.
+
+## Instalación local (con devcontainer)
+
+```bash
+# Abrir en VS Code → "Reopen in Container"
+composer install
+cp config/.env.example config/.env
+# Editar config/.env con tus credenciales
+mysql -u$DB_USERNAME -p$DB_PASSWORD $DB_NAME < docs/schema.sql
+php -S localhost:8080 -t public
+```
+
+## Despliegue en cPanel
+
+1. Subir todo el proyecto **excepto** `vendor/` y `config/.env`
+2. En cPanel → **Terminal** o **SSH**:
+   ```bash
+   composer install --no-dev --optimize-autoloader
+   ```
+3. Crear `config/.env` en el servidor con las credenciales reales
+4. En cPanel → **Dominios** → apuntar el `Document Root` a la carpeta `public/`
+5. Verificar que `mod_rewrite` esté activo (el `.htaccess` ya está configurado)
+6. Crear la base de datos en cPanel → **MySQL Databases** y ejecutar `docs/schema.sql`
+
+## Variables de entorno (`config/.env`)
+
+```env
+APP_DEBUG=false
+
+DB_HOST=localhost
+DB_PORT=3306
+DB_NAME=clinical_lab
+DB_USERNAME=api_user
+DB_PASSWORD=change_me
+
+EXTERNAL_LAB_BASE_URL=https://aliado-lab.local
+EXTERNAL_LAB_API_KEY=generated_api_key
+EXTERNAL_LAB_JWT_SECRET=change_this_secret
+```

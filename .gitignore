@@ -1,7 +1,6 @@
-# CakePHP 3
-
-/vendor/*
-/config/app.php
+/vendor/
+/config/.env
+.phpunit.result.cache
 
 /.phpunit.result.cache
 

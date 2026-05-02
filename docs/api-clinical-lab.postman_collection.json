@@ -1,0 +1,476 @@
+{
+  "info": {
+    "name": "API Clinical Lab",
+    "description": "Colección completa para probar la API del módulo de laboratorio clínico.\n\n## Autenticación\nTodos los endpoints (excepto `POST /auth/login`) requieren un JWT en el header `Authorization: Bearer {{jwt_token}}`.\n\nEl token se obtiene con `POST /auth/login` y el script de test lo guarda automáticamente en la variable `jwt_token`.\n\n## Roles\n| Rol | Permisos |\n|---|---|\n| `admin` | Todo |\n| `lab_operator` | Crear/enviar órdenes, registrar resultados, consultar |\n| `aliado_operator` | Consultar órdenes, registrar resultados |\n| `viewer` | Solo lectura (sin endpoints activos aún) |\n\n## Variables de colección\n- `base_url` — URL base (ej: `http://localhost:8080`)\n- `jwt_token` — Se llena automáticamente al hacer login\n- `id_solicitud_key` — Se llena automáticamente al crear una orden",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url",         "value": "http://localhost:8080", "type": "string" },
+    { "key": "jwt_token",        "value": "",                      "type": "string" },
+    { "key": "id_solicitud_key", "value": "REQ-001",               "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Autenticación",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Login exitoso', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var json = pm.response.json();",
+                  "if (json.token) {",
+                  "    pm.collectionVariables.set('jwt_token', json.token);",
+                  "    console.log('Token guardado:', json.token.substring(0, 30) + '...');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"admin123\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Autentica un usuario y retorna un JWT válido por 1 hora.\n\nEl script de test guarda el token en la variable `jwt_token` automáticamente.\n\n**Pública** — no requiere token previo."
+          },
+          "response": [
+            {
+              "name": "200 - Login exitoso",
+              "status": "OK", "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"token\": \"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...\",\n  \"user\": {\n    \"id\": 1,\n    \"username\": \"admin\",\n    \"email\": \"admin@lab.com\",\n    \"role\": \"admin\",\n    \"aliados\": []\n  }\n}"
+            },
+            {
+              "name": "401 - Credenciales inválidas",
+              "status": "Unauthorized", "code": 401,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"error\": \"Credenciales inválidas\"\n}"
+            },
+            {
+              "name": "422 - Campos faltantes",
+              "status": "Unprocessable Entity", "code": 422,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"error\": \"username y password son requeridos\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Mi Perfil (me)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/auth/me",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "me"]
+            },
+            "description": "Retorna el perfil del usuario autenticado extraído del JWT.\n\n**Roles:** todos."
+          },
+          "response": [
+            {
+              "name": "200 - Perfil del usuario",
+              "status": "OK", "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"id\": 1,\n  \"username\": \"admin\",\n  \"role\": \"admin\",\n  \"aliados\": []\n}"
+            },
+            {
+              "name": "401 - Sin token",
+              "status": "Unauthorized", "code": 401,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"error\": \"Token de autorización ausente\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Registrar Usuario",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"operador1\",\n  \"email\": \"operador1@lab.com\",\n  \"password\": \"pass1234\",\n  \"role\": \"lab_operator\",\n  \"aliados\": [\"ALLY-001\"]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "register"]
+            },
+            "description": "Crea un nuevo usuario en el sistema.\n\n**Roles permitidos:** `admin` únicamente.\n\n**Campos requeridos:** `username`, `email`, `password`, `role`.\n\n**Roles válidos:** `admin`, `lab_operator`, `aliado_operator`, `viewer`.\n\n**Opcional:** `aliados` — array de IDs de aliados a los que pertenece el usuario."
+          },
+          "response": [
+            {
+              "name": "201 - Usuario creado",
+              "status": "Created", "code": 201,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"id\": 5,\n  \"message\": \"Usuario creado\"\n}"
+            },
+            {
+              "name": "422 - Username duplicado",
+              "status": "Unprocessable Entity", "code": 422,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"error\": \"El username ya está en uso\"\n}"
+            },
+            {
+              "name": "422 - Rol inválido",
+              "status": "Unprocessable Entity", "code": 422,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"error\": \"Rol inválido: superuser\"\n}"
+            },
+            {
+              "name": "403 - Sin permisos (no es admin)",
+              "status": "Forbidden", "code": 403,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"error\": \"No tienes permisos para esta acción\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Órdenes de Laboratorio",
+      "item": [
+        {
+          "name": "Crear Orden",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Orden creada', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "var json = pm.response.json();",
+                  "if (json.idSolicitudKey) {",
+                  "    pm.collectionVariables.set('id_solicitud_key', json.idSolicitudKey);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idSolicitudKey\": \"REQ-001\",\n  \"idAdmision\": \"ADM-2024-001\",\n  \"idAtencion\": \"ATT-2024-001\",\n  \"tipoDeDocumento\": \"CC\",\n  \"identificacion\": \"100200300\",\n  \"nombreDelPaciente\": \"Juan Pérez García\",\n  \"sexo\": \"M\",\n  \"fechaDeNacimiento\": \"1985-06-15\",\n  \"centroDeSalud\": \"Hospital Central Norte\",\n  \"fechaDeLaOrden\": \"2024-04-27 08:30:00\",\n  \"medicoQueOrdena\": \"Dr. Carlos Rodríguez\",\n  \"numeroDeAutorizacion\": \"AUTH-2024-555\",\n  \"idAliado\": \"ALLY-001\",\n  \"porcEjecucion\": \"0\",\n  \"detalles\": [\n    {\n      \"cups\": \"903832\",\n      \"nombreDelLaboratorio\": \"Hemograma Completo\",\n      \"fechaTomaMuestra\": null,\n      \"metodo\": null,\n      \"reactivo\": null,\n      \"invima\": null,\n      \"estadoDelResultado\": null,\n      \"fechaResultado\": null,\n      \"tipoIdentificacionDelBacteriologo\": null,\n      \"identificacionDelBacteriologo\": null\n    },\n    {\n      \"cups\": \"903840\",\n      \"nombreDelLaboratorio\": \"Glucosa en Ayunas\",\n      \"fechaTomaMuestra\": null,\n      \"metodo\": null,\n      \"reactivo\": null,\n      \"invima\": null,\n      \"estadoDelResultado\": null,\n      \"fechaResultado\": null,\n      \"tipoIdentificacionDelBacteriologo\": null,\n      \"identificacionDelBacteriologo\": null\n    }\n  ]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/orders",
+              "host": ["{{base_url}}"],
+              "path": ["orders"]
+            },
+            "description": "Crea una nueva orden de laboratorio con sus exámenes.\n\n**Roles:** `admin`, `lab_operator`.\n\n**Campos requeridos:** `idSolicitudKey`, `idAdmision`, `tipoDeDocumento`, `identificacion`, `nombreDelPaciente`, `sexo`, `fechaDeNacimiento`, `centroDeSalud`, `fechaDeLaOrden`, `medicoQueOrdena`, `detalles` (mínimo 1).\n\nCada detalle requiere: `cups`, `nombreDelLaboratorio`."
+          },
+          "response": [
+            {
+              "name": "201 - Orden creada",
+              "status": "Created", "code": 201,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"idSolicitudKey\": \"REQ-001\",\n  \"estadoDeLaOrden\": \"pending\",\n  \"porcEjecucion\": 0,\n  \"detalles\": 2\n}"
+            },
+            {
+              "name": "422 - Campo requerido faltante",
+              "status": "Unprocessable Entity", "code": 422,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"error\": \"Campo requerido faltante: medicoQueOrdena\"\n}"
+            },
+            {
+              "name": "401 - Sin token",
+              "status": "Unauthorized", "code": 401,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"error\": \"Token de autorización ausente\"\n}"
+            },
+            {
+              "name": "403 - Rol insuficiente",
+              "status": "Forbidden", "code": 403,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"error\": \"No tienes permisos para esta acción\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Consultar Orden",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/orders/{{id_solicitud_key}}",
+              "host": ["{{base_url}}"],
+              "path": ["orders", "{{id_solicitud_key}}"]
+            },
+            "description": "Retorna una orden con todos sus detalles.\n\n**Roles:** `admin`, `lab_operator`, `aliado_operator`."
+          },
+          "response": [
+            {
+              "name": "200 - Orden encontrada",
+              "status": "OK", "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"idSolicitudKey\": \"REQ-001\",\n  \"idAdmision\": \"ADM-2024-001\",\n  \"nombreDelPaciente\": \"Juan Pérez García\",\n  \"estadoDeLaOrden\": \"pending\",\n  \"porcEjecucion\": 0,\n  \"fechaEnvio\": null,\n  \"detalles\": [\n    {\n      \"cups\": \"903832\",\n      \"nombreDelLaboratorio\": \"Hemograma Completo\",\n      \"estadoDelResultado\": null,\n      \"fechaResultado\": null\n    }\n  ]\n}"
+            },
+            {
+              "name": "404 - No encontrada",
+              "status": "Not Found", "code": 404,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"error\": \"Orden no encontrada\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Enviar Orden al Laboratorio Externo",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/orders/{{id_solicitud_key}}/send",
+              "host": ["{{base_url}}"],
+              "path": ["orders", "{{id_solicitud_key}}", "send"]
+            },
+            "description": "Envía la orden al laboratorio aliado externo vía HTTP (JWT + API Key).\n\nCambia el estado a `sent` y registra `fechaEnvio`.\n\n**Roles:** `admin`, `lab_operator`."
+          },
+          "response": [
+            {
+              "name": "200 - Enviada",
+              "status": "OK", "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"idSolicitudKey\": \"REQ-001\",\n  \"estadoDeLaOrden\": \"sent\",\n  \"fechaEnvio\": \"2024-04-27T08:35:00+00:00\"\n}"
+            },
+            {
+              "name": "404 - No encontrada",
+              "status": "Not Found", "code": 404,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"error\": \"Orden no encontrada\"\n}"
+            },
+            {
+              "name": "502 - Fallo en laboratorio externo",
+              "status": "Bad Gateway", "code": 502,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"error\": \"Fallo al enviar orden: Connection timed out\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Resultados de Laboratorio",
+      "item": [
+        {
+          "name": "Registrar Resultado",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idSolicitudKey\": \"REQ-001\",\n  \"cups\": \"903832\",\n  \"values\": {\n    \"resultado\": \"Normal\",\n    \"hemoglobina\": \"14.5 g/dL\",\n    \"hematocrito\": \"43%\",\n    \"leucocitos\": \"7200 /uL\",\n    \"plaquetas\": \"250000 /uL\"\n  },\n  \"attachmentPath\": \"/resultados/REQ-001/hemograma.pdf\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/results",
+              "host": ["{{base_url}}"],
+              "path": ["results"]
+            },
+            "description": "Registra el resultado de un examen.\n\n**Roles:** `admin`, `lab_operator`, `aliado_operator`.\n\n**Validación:** `values` debe contener la clave `resultado`. Sin ella retorna 422.\n\nAl guardar, la orden pasa a `completed` con `porcEjecucion = 100`."
+          },
+          "response": [
+            {
+              "name": "201 - Resultado registrado",
+              "status": "Created", "code": 201,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"idSolicitudKey\": \"REQ-001\",\n  \"cups\": \"903832\",\n  \"message\": \"Resultado registrado correctamente\"\n}"
+            },
+            {
+              "name": "422 - Falta campo resultado",
+              "status": "Unprocessable Entity", "code": 422,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"error\": \"El resultado debe incluir un valor de resultado principal.\"\n}"
+            },
+            {
+              "name": "404 - Orden no encontrada",
+              "status": "Not Found", "code": 404,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"error\": \"Orden no encontrada\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Flujo Completo",
+      "item": [
+        {
+          "name": "1. Login (admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Login OK', () => pm.response.to.have.status(200));",
+                  "var json = pm.response.json();",
+                  "if (json.token) pm.collectionVariables.set('jwt_token', json.token);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"admin123\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{base_url}}/auth/login", "host": ["{{base_url}}"], "path": ["auth","login"] },
+            "description": "Paso 1: Obtiene el JWT. El token se guarda automáticamente."
+          },
+          "response": []
+        },
+        {
+          "name": "2. Crear Orden",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Orden creada', () => pm.response.to.have.status(201));",
+                  "var json = pm.response.json();",
+                  "if (json.idSolicitudKey) pm.collectionVariables.set('id_solicitud_key', json.idSolicitudKey);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idSolicitudKey\": \"REQ-FLOW-001\",\n  \"idAdmision\": \"ADM-FLOW-001\",\n  \"idAtencion\": null,\n  \"tipoDeDocumento\": \"CC\",\n  \"identificacion\": \"987654321\",\n  \"nombreDelPaciente\": \"María López\",\n  \"sexo\": \"F\",\n  \"fechaDeNacimiento\": \"1990-03-20\",\n  \"centroDeSalud\": \"Clínica del Sur\",\n  \"fechaDeLaOrden\": \"2024-04-27 09:00:00\",\n  \"medicoQueOrdena\": \"Dra. Ana Martínez\",\n  \"numeroDeAutorizacion\": null,\n  \"idAliado\": \"ALLY-001\",\n  \"porcEjecucion\": \"0\",\n  \"detalles\": [\n    {\n      \"cups\": \"903891\",\n      \"nombreDelLaboratorio\": \"Glucosa\",\n      \"metodo\": \"Enzimático colorimétrico\",\n      \"reactivo\": \"Glucosa Liquicolor\",\n      \"invima\": \"2020DM-0012345\",\n      \"fechaTomaMuestra\": null,\n      \"estadoDelResultado\": null,\n      \"fechaResultado\": null,\n      \"tipoIdentificacionDelBacteriologo\": null,\n      \"identificacionDelBacteriologo\": null\n    }\n  ]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{base_url}}/orders", "host": ["{{base_url}}"], "path": ["orders"] },
+            "description": "Paso 2: Crea la orden. Guarda `id_solicitud_key` para los pasos siguientes."
+          },
+          "response": []
+        },
+        {
+          "name": "3. Enviar al Laboratorio",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Enviada', () => pm.response.to.have.status(200));",
+                  "pm.test('Estado sent', () => pm.expect(pm.response.json().estadoDeLaOrden).to.eql('sent'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/orders/{{id_solicitud_key}}/send",
+              "host": ["{{base_url}}"],
+              "path": ["orders", "{{id_solicitud_key}}", "send"]
+            },
+            "description": "Paso 3: Envía la orden al laboratorio externo."
+          },
+          "response": []
+        },
+        {
+          "name": "4. Registrar Resultado",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Resultado registrado', () => pm.response.to.have.status(201));",
+                  "pm.test('Mensaje correcto', () => {",
+                  "    pm.expect(pm.response.json().message).to.include('correctamente');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idSolicitudKey\": \"{{id_solicitud_key}}\",\n  \"cups\": \"903891\",\n  \"values\": {\n    \"resultado\": \"Normal\",\n    \"glucosa\": \"95 mg/dL\"\n  },\n  \"attachmentPath\": \"/resultados/REQ-FLOW-001/glucosa.pdf\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{base_url}}/results", "host": ["{{base_url}}"], "path": ["results"] },
+            "description": "Paso 4: Registra el resultado. La orden pasa a `completed`."
+          },
+          "response": []
+        },
+        {
+          "name": "5. Verificar Estado Final",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Orden completada', () => {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.estadoDeLaOrden).to.eql('completed');",
+                  "    pm.expect(json.porcEjecucion).to.eql(100);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/orders/{{id_solicitud_key}}",
+              "host": ["{{base_url}}"],
+              "path": ["orders", "{{id_solicitud_key}}"]
+            },
+            "description": "Paso 5: Confirma que la orden quedó en estado `completed` con `porcEjecucion = 100`."
+          },
+          "response": []
+        }
+      ],
+      "description": "Ejecuta los 5 pasos en orden para simular el flujo completo: login → crear orden → enviar → resultado → verificar."
+    }
+  ]
+}

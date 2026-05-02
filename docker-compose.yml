@@ -1,0 +1,45 @@
+services:
+  app:
+    image: php:8.2-cli
+    working_dir: /app
+    volumes:
+      - .:/app
+    ports:
+      - "8080:8080"
+    environment:
+      APP_DEBUG: "true"
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_NAME: clinical_lab
+      DB_USERNAME: api_user
+      DB_PASSWORD: secret
+      JWT_SECRET: "clinical_lab_jwt_secret_key_for_dev_only_32chars"
+      EXTERNAL_LAB_BASE_URL: http://mock-lab
+      EXTERNAL_LAB_API_KEY: test-api-key
+      EXTERNAL_LAB_JWT_SECRET: test-jwt-secret
+    depends_on:
+      db:
+        condition: service_healthy
+    command: >
+      sh -c "docker-php-ext-install pdo pdo_mysql &&
+             php /app/database/seed.php &&
+             php -S 0.0.0.0:8080 -t public"
+
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: clinical_lab
+      MYSQL_USER: api_user
+      MYSQL_PASSWORD: secret
+      MYSQL_ROOT_PASSWORD: root
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "api_user", "-psecret"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  db_data:

@@ -20,6 +20,7 @@ class MySqlLabOrderRepositoryTest extends TestCase
     {
         $this->pdo = new PDO('sqlite::memory:');
         $this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $this->pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
         $this->pdo->exec('CREATE TABLE lab_orders (
             id_solicitud_key TEXT PRIMARY KEY,
             id_admision TEXT NOT NULL,
