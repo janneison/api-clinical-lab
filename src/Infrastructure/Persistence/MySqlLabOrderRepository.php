@@ -21,29 +21,33 @@ class MySqlLabOrderRepository implements LabOrderRepositoryInterface
             'INSERT INTO lab_orders (
                 id_solicitud_key, id_admision, id_atencion, tipo_documento, identificacion, nombre_paciente,
                 sexo, fecha_nacimiento, centro_salud, fecha_orden, medico_ordena, numero_autorizacion,
-                id_aliado, fecha_envio, porc_ejecucion, estado_orden
+                id_aliado, fecha_envio, porc_ejecucion, estado_orden, patient_id, health_center_id, medico_id
             ) VALUES (:id_solicitud_key, :id_admision, :id_atencion, :tipo_documento, :identificacion,
                 :nombre_paciente, :sexo, :fecha_nacimiento, :centro_salud, :fecha_orden, :medico_ordena,
-                :numero_autorizacion, :id_aliado, :fecha_envio, :porc_ejecucion, :estado_orden)'
+                :numero_autorizacion, :id_aliado, :fecha_envio, :porc_ejecucion, :estado_orden,
+                :patient_id, :health_center_id, :medico_id)'
         );
 
         $stmt->execute([
-            'id_solicitud_key' => $order->getIdSolicitudKey(),
-            'id_admision' => $order->getIdAdmision(),
-            'id_atencion' => $order->getIdAtencion(),
-            'tipo_documento' => $order->getTipoDeDocumento(),
-            'identificacion' => $order->getIdentificacion(),
-            'nombre_paciente' => $order->getNombreDelPaciente(),
-            'sexo' => $order->getSexo(),
-            'fecha_nacimiento' => $order->getFechaDeNacimiento()->format('Y-m-d'),
-            'centro_salud' => $order->getCentroDeSalud(),
-            'fecha_orden' => $order->getFechaDeLaOrden()->format('Y-m-d H:i:s'),
-            'medico_ordena' => $order->getMedicoQueOrdena(),
+            'id_solicitud_key'    => $order->getIdSolicitudKey(),
+            'id_admision'         => $order->getIdAdmision(),
+            'id_atencion'         => $order->getIdAtencion(),
+            'tipo_documento'      => $order->getTipoDeDocumento(),
+            'identificacion'      => $order->getIdentificacion(),
+            'nombre_paciente'     => $order->getNombreDelPaciente(),
+            'sexo'                => $order->getSexo(),
+            'fecha_nacimiento'    => $order->getFechaDeNacimiento()->format('Y-m-d'),
+            'centro_salud'        => $order->getCentroDeSalud(),
+            'fecha_orden'         => $order->getFechaDeLaOrden()->format('Y-m-d H:i:s'),
+            'medico_ordena'       => $order->getMedicoQueOrdena(),
             'numero_autorizacion' => $order->getNumeroDeAutorizacion(),
-            'id_aliado' => $order->getIdAliado(),
-            'fecha_envio' => $order->getFechaEnvio()?->format('Y-m-d H:i:s'),
-            'porc_ejecucion' => $order->getPorcEjecucion(),
-            'estado_orden' => $order->getEstadoDeLaOrden(),
+            'id_aliado'           => $order->getIdAliado(),
+            'fecha_envio'         => $order->getFechaEnvio()?->format('Y-m-d H:i:s'),
+            'porc_ejecucion'      => $order->getPorcEjecucion(),
+            'estado_orden'        => $order->getEstadoDeLaOrden(),
+            'patient_id'          => $order->getPatientId(),
+            'health_center_id'    => $order->getHealthCenterId(),
+            'medico_id'           => $order->getMedicoId(),
         ]);
     }
 
@@ -134,6 +138,24 @@ class MySqlLabOrderRepository implements LabOrderRepositoryInterface
         return (int) $stmt->fetchColumn();
     }
 
+    public function findByIdentificacion(string $identificacion, ?string $estado = null): array
+    {
+        $sql    = 'SELECT * FROM lab_orders o WHERE o.identificacion = :identificacion';
+        $params = ['identificacion' => $identificacion];
+
+        if ($estado !== null) {
+            $sql           .= ' AND o.estado_orden = :estado';
+            $params['estado'] = $estado;
+        }
+
+        $sql .= ' ORDER BY o.fecha_orden DESC LIMIT 200';
+
+        $stmt = $this->connection->prepare($sql);
+        $stmt->execute($params);
+
+        return array_map(fn(array $row) => $this->hydrateRow($row), $stmt->fetchAll());
+    }
+
     // ── Helpers privados ──────────────────────────────────────────────────────
 
     /**
@@ -190,6 +212,12 @@ class MySqlLabOrderRepository implements LabOrderRepositoryInterface
             $select = str_replace('SELECT ', 'SELECT DISTINCT ', $select);
         }
 
+        // Filtro por paciente
+        if ($filter->patientId !== null) {
+            $where[]               = 'o.patient_id = :patient_id';
+            $params['patient_id']  = $filter->patientId;
+        }
+
         $sql = "{$select} FROM lab_orders o{$joins}";
 
         if (!empty($where)) {
@@ -217,7 +245,10 @@ class MySqlLabOrderRepository implements LabOrderRepositoryInterface
             $row['id_aliado'],
             $row['fecha_envio'] ? new DateTimeImmutable($row['fecha_envio']) : null,
             (float) $row['porc_ejecucion'],
-            $row['estado_orden']
+            $row['estado_orden'],
+            isset($row['patient_id'])       ? (int) $row['patient_id']       : null,
+            isset($row['health_center_id']) ? (int) $row['health_center_id'] : null,
+            isset($row['medico_id'])        ? (int) $row['medico_id']        : null,
         );
     }
 }

@@ -17,6 +17,7 @@ class OrderFilterDto
         public readonly ?string $cups       = null,
         public readonly int     $page       = 1,
         public readonly int     $limit      = 20,
+        public readonly ?int    $patientId  = null,
     ) {
     }
 

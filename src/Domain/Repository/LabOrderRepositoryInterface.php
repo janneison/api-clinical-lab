@@ -19,4 +19,6 @@ interface LabOrderRepositoryInterface
     public function findByFilter(OrderFilterDto $filter): array;
 
     public function countByFilter(OrderFilterDto $filter): int;
+
+    public function findByIdentificacion(string $identificacion, ?string $estado = null): array;
 }

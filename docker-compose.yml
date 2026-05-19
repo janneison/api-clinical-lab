@@ -1,6 +1,8 @@
 services:
   app:
-    image: php:8.2-cli
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
     working_dir: /app
     volumes:
       - .:/app
@@ -17,16 +19,26 @@ services:
       EXTERNAL_LAB_BASE_URL: http://mock-lab
       EXTERNAL_LAB_API_KEY: test-api-key
       EXTERNAL_LAB_JWT_SECRET: test-jwt-secret
+      MAIL_HOST: smtp.gmail.com
+      MAIL_PORT: 587
+      MAIL_USERNAME: infantilmaterno78@gmail.com
+      MAIL_PASSWORD: "rldmbolzfwlufncr"
+      MAIL_FROM_NAME: "Laboratorio Clínico"
     depends_on:
       db:
         condition: service_healthy
     command: >
-      sh -c "docker-php-ext-install pdo pdo_mysql &&
+      sh -c "git config --global --add safe.directory /app &&
+             composer update --no-interaction --no-progress &&
              php /app/database/seed.php &&
-             php -S 0.0.0.0:8080 -t public"
+             php /app/database/seed_exam_catalog.php &&
+             php /app/database/seed_health_centers.php &&
+             php -S 0.0.0.0:8080 -t public public/router.php"
 
   db:
     image: mysql:8.0
+    ports:
+      - "3306:3306"
     environment:
       MYSQL_DATABASE: clinical_lab
       MYSQL_USER: api_user

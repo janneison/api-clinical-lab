@@ -148,16 +148,21 @@ class OrderController
                 $body['numeroDeAutorizacion'] ?? null,
                 $body['idAliado'] ?? null,
                 $body['porcEjecucion'] ?? '0',
-                $detalles
+                $detalles,
+                isset($body['healthCenterId'])        ? (int) $body['healthCenterId']        : null,
+                isset($body['medicoId'])              ? (int) $body['medicoId']              : null,
+                $body['tipoDocumentoMedico']          ?? null,
+                $body['identificacionMedico']         ?? null,
             );
 
             $order = $this->createUseCase->execute($dto);
 
             return $this->json($response, [
-                'idSolicitudKey' => $order->getIdSolicitudKey(),
+                'idSolicitudKey'  => $order->getIdSolicitudKey(),
                 'estadoDeLaOrden' => $order->getEstadoDeLaOrden(),
-                'porcEjecucion' => $order->getPorcEjecucion(),
-                'detalles' => count($order->getDetails()),
+                'porcEjecucion'   => $order->getPorcEjecucion(),
+                'medicoId'        => $order->getMedicoId(),
+                'detalles'        => count($order->getDetails()),
             ], 201);
         } catch (Throwable $e) {
             return $this->json($response, ['error' => $e->getMessage()], 500);
@@ -173,20 +178,28 @@ class OrderController
         }
 
         $details = array_map(fn($d) => [
-            'cups' => $d->getCups(),
-            'nombreDelLaboratorio' => $d->getNombreDelLaboratorio(),
-            'estadoDelResultado' => $d->getEstadoDelResultado(),
-            'fechaResultado' => $d->getFechaResultado()?->format('Y-m-d H:i:s'),
+            'cups'                             => $d->getCups(),
+            'nombreDelLaboratorio'             => $d->getNombreDelLaboratorio(),
+            'fechaTomaMuestra'                 => $d->getFechaTomaMuestra()?->format('Y-m-d H:i:s'),
+            'metodo'                           => $d->getMetodo(),
+            'reactivo'                         => $d->getReactivo(),
+            'invima'                           => $d->getInvima(),
+            'estadoDelResultado'               => $d->getEstadoDelResultado(),
+            'fechaResultado'                   => $d->getFechaResultado()?->format('Y-m-d H:i:s'),
+            'tipoIdentificacionDelBacteriologo' => $d->getTipoIdentificacionDelBacteriologo(),
+            'identificacionDelBacteriologo'    => $d->getIdentificacionDelBacteriologo(),
         ], $order->getDetails());
 
         return $this->json($response, [
-            'idSolicitudKey' => $order->getIdSolicitudKey(),
-            'idAdmision' => $order->getIdAdmision(),
+            'idSolicitudKey'    => $order->getIdSolicitudKey(),
+            'idAdmision'        => $order->getIdAdmision(),
             'nombreDelPaciente' => $order->getNombreDelPaciente(),
-            'estadoDeLaOrden' => $order->getEstadoDeLaOrden(),
-            'porcEjecucion' => $order->getPorcEjecucion(),
-            'fechaEnvio' => $order->getFechaEnvio()?->format('Y-m-d H:i:s'),
-            'detalles' => $details,
+            'estadoDeLaOrden'   => $order->getEstadoDeLaOrden(),
+            'porcEjecucion'     => $order->getPorcEjecucion(),
+            'fechaEnvio'        => $order->getFechaEnvio()?->format('Y-m-d H:i:s'),
+            'medicoId'          => $order->getMedicoId(),
+            'medicoQueOrdena'   => $order->getMedicoQueOrdena(),
+            'detalles'          => $details,
         ]);
     }
 

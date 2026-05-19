@@ -31,6 +31,8 @@ class AuthController
             $result = $this->loginUseCase->execute(
                 new LoginDto($body['username'], $body['password'])
             );
+            // Agregar permissions al objeto user de la respuesta
+            $result['user']['permissions'] = $this->permissionsForRole($result['user']['role']);
             return $this->json($response, $result);
         } catch (RuntimeException $e) {
             return $this->json($response, ['error' => $e->getMessage()], 401);
@@ -67,12 +69,61 @@ class AuthController
     public function me(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $auth = $request->getAttribute('auth');
+        $role = $auth['role'] ?? '';
+
         return $this->json($response, [
-            'id'       => $auth['sub'],
-            'username' => $auth['username'],
-            'role'     => $auth['role'],
-            'aliados'  => $auth['aliados'] ?? [],
+            'id'          => $auth['sub'],
+            'username'    => $auth['username'],
+            'role'        => $role,
+            'aliados'     => $auth['aliados'] ?? [],
+            'permissions' => $this->permissionsForRole($role),
         ]);
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    /**
+     * Devuelve un mapa de permisos booleanos según el rol.
+     * El frontend puede usarlo para mostrar/ocultar acciones sin hardcodear roles.
+     */
+    private function permissionsForRole(string $role): array
+    {
+        return [
+            // Usuarios
+            'canRegisterUsers'       => $role === 'admin',
+
+            // Aliados
+            'canEditAliado'          => $role === 'admin',
+            'canUploadAliadoLogo'    => $role === 'admin',
+
+            // Bacteriólogos
+            'canCreateBacteriologo'  => in_array($role, ['admin', 'lab_operator'], true),
+            'canEditBacteriologo'    => in_array($role, ['admin', 'lab_operator'], true),
+            'canDeleteBacteriologo'  => in_array($role, ['admin', 'lab_operator'], true),
+            'canUploadFirma'         => in_array($role, ['admin', 'lab_operator'], true),
+
+            // Centros de salud
+            'canCreateHealthCenter'  => $role === 'admin',
+            'canEditHealthCenter'    => $role === 'admin',
+
+            // Pacientes
+            'canViewPatients'        => in_array($role, ['admin', 'lab_operator'], true),
+            'canCreatePatient'       => in_array($role, ['admin', 'lab_operator'], true),
+            'canEditPatient'         => in_array($role, ['admin', 'lab_operator'], true),
+
+            // Órdenes
+            'canCreateOrder'         => in_array($role, ['admin', 'lab_operator'], true),
+            'canSendOrder'           => in_array($role, ['admin', 'lab_operator'], true),
+            'canMarkOrdersSent'      => in_array($role, ['admin', 'lab_operator'], true),
+
+            // Resultados
+            'canStoreResult'         => in_array($role, ['admin', 'lab_operator', 'aliado_operator'], true),
+            'canAttachPdf'           => in_array($role, ['admin', 'lab_operator', 'aliado_operator'], true),
+            'canSendResultEmail'     => in_array($role, ['admin', 'lab_operator', 'aliado_operator'], true),
+
+            // Catálogo de exámenes
+            'canEditExamCatalog'     => $role === 'admin',
+        ];
     }
 
     private function json(ResponseInterface $response, array $data, int $status = 200): ResponseInterface

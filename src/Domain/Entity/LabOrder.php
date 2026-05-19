@@ -14,22 +14,25 @@ class LabOrder
     private array $details = [];
 
     public function __construct(
-        private string $idSolicitudKey,
-        private string $idAdmision,
-        private ?string $idAtencion,
-        private string $tipoDeDocumento,
-        private string $identificacion,
-        private string $nombreDelPaciente,
-        private string $sexo,
-        private DateTimeImmutable $fechaDeNacimiento,
-        private string $centroDeSalud,
-        private DateTimeImmutable $fechaDeLaOrden,
-        private string $medicoQueOrdena,
-        private ?string $numeroDeAutorizacion,
-        private ?string $idAliado,
+        private string             $idSolicitudKey,
+        private string             $idAdmision,
+        private ?string            $idAtencion,
+        private string             $tipoDeDocumento,
+        private string             $identificacion,
+        private string             $nombreDelPaciente,
+        private string             $sexo,
+        private DateTimeImmutable  $fechaDeNacimiento,
+        private string             $centroDeSalud,
+        private DateTimeImmutable  $fechaDeLaOrden,
+        private string             $medicoQueOrdena,
+        private ?string            $numeroDeAutorizacion,
+        private ?string            $idAliado,
         private ?DateTimeImmutable $fechaEnvio,
-        private float $porcEjecucion = 0.0,
-        private string $estadoDeLaOrden = self::STATUS_PENDING
+        private float              $porcEjecucion   = 0.0,
+        private string             $estadoDeLaOrden = self::STATUS_PENDING,
+        private ?int               $patientId       = null,
+        private ?int               $healthCenterId  = null,
+        private ?int               $medicoId        = null,
     ) {
     }
 
@@ -139,4 +142,8 @@ class LabOrder
             $this->estadoDeLaOrden = self::STATUS_COMPLETED;
         }
     }
+
+    public function getPatientId(): ?int       { return $this->patientId; }
+    public function getHealthCenterId(): ?int  { return $this->healthCenterId; }
+    public function getMedicoId(): ?int        { return $this->medicoId; }
 }

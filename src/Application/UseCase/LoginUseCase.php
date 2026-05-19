@@ -40,11 +40,11 @@ class LoginUseCase
         return [
             'token' => $token,
             'user'  => [
-                'id'       => $user->getId(),
-                'username' => $user->getUsername(),
-                'email'    => $user->getEmail(),
-                'role'     => $user->getRole()->getName(),
-                'aliados'  => $user->getAliadoIds(),
+                'id'          => $user->getId(),
+                'username'    => $user->getUsername(),
+                'email'       => $user->getEmail(),
+                'role'        => $user->getRole()->getName(),
+                'aliados'     => $user->getAliadoIds(),
             ],
         ];
     }
