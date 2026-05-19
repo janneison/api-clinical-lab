@@ -21,8 +21,8 @@ services:
       EXTERNAL_LAB_JWT_SECRET: test-jwt-secret
       MAIL_HOST: smtp.gmail.com
       MAIL_PORT: 587
-      MAIL_USERNAME: infantilmaterno78@gmail.com
-      MAIL_PASSWORD: "rldmbolzfwlufncr"
+      MAIL_USERNAME: "${MAIL_USERNAME}"
+      MAIL_PASSWORD: "${MAIL_PASSWORD}"
       MAIL_FROM_NAME: "Laboratorio Clínico"
     depends_on:
       db:
