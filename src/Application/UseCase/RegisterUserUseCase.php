@@ -7,6 +7,8 @@ use ClinicalLab\Domain\Entity\Role;
 use ClinicalLab\Domain\Entity\User;
 use ClinicalLab\Domain\Repository\AliadoRepositoryInterface;
 use ClinicalLab\Domain\Repository\UserRepositoryInterface;
+use ClinicalLab\Domain\Service\PasswordPolicyService;
+use InvalidArgumentException;
 use RuntimeException;
 
 class RegisterUserUseCase
@@ -16,11 +18,13 @@ class RegisterUserUseCase
         Role::LAB_OPERATOR,
         Role::ALIADO_OPERATOR,
         Role::VIEWER,
+        Role::MEDICO,
     ];
 
     public function __construct(
         private readonly UserRepositoryInterface   $userRepository,
-        private readonly AliadoRepositoryInterface $aliadoRepository
+        private readonly AliadoRepositoryInterface $aliadoRepository,
+        private readonly PasswordPolicyService     $passwordPolicy = new PasswordPolicyService(),
     ) {
     }
 
@@ -36,6 +40,13 @@ class RegisterUserUseCase
 
         if ($this->userRepository->findByEmail($dto->email)) {
             throw new RuntimeException('El email ya está en uso');
+        }
+
+        // Validar política de contraseñas
+        try {
+            $this->passwordPolicy->validate($dto->password);
+        } catch (InvalidArgumentException $e) {
+            throw new RuntimeException($e->getMessage());
         }
 
         // Validar que los aliados existan
@@ -56,6 +67,10 @@ class RegisterUserUseCase
 
         foreach ($dto->aliadoIds as $aliadoId) {
             $this->userRepository->assignAliado($userId, $aliadoId);
+        }
+
+        foreach ($dto->healthCenterIds as $hcId) {
+            $this->userRepository->assignHealthCenter($userId, (int) $hcId);
         }
 
         return $userId;

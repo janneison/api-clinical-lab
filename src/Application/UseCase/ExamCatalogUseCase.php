@@ -85,6 +85,7 @@ class ExamCatalogUseCase
             true,
             $dto->tipoResultado,
             $dto->etiquetaBooleano,
+            $dto->comentario,
         ));
     }
 
@@ -114,6 +115,7 @@ class ExamCatalogUseCase
             true,
             $dto->tipoResultado,
             $dto->etiquetaBooleano,
+            $dto->comentario,
         ));
     }
 

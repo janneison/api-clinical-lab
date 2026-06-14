@@ -30,6 +30,7 @@ class ExamParameter
         private readonly bool    $activo,
         private readonly string  $tipoResultado    = self::TIPO_NUMERICO,
         private readonly ?string $etiquetaBooleano = null,
+        private readonly ?string $comentario       = null,  // nota interpretativa (ej. "Valor deseable < 200 mg/dL")
     ) {
     }
 
@@ -48,6 +49,7 @@ class ExamParameter
     public function isActivo(): bool          { return $this->activo; }
     public function getTipoResultado(): string { return $this->tipoResultado; }
     public function getEtiquetaBooleano(): ?string { return $this->etiquetaBooleano; }
+    public function getComentario(): ?string  { return $this->comentario; }
 
     // ── Cálculo de flags ──────────────────────────────────────────────────────
 

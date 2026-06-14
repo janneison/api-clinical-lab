@@ -8,22 +8,14 @@ services:
       - .:/app
     ports:
       - "8080:8080"
+    env_file:
+      - config/.env
     environment:
-      APP_DEBUG: "true"
       DB_HOST: db
       DB_PORT: 3306
       DB_NAME: clinical_lab
       DB_USERNAME: api_user
       DB_PASSWORD: secret
-      JWT_SECRET: "clinical_lab_jwt_secret_key_for_dev_only_32chars"
-      EXTERNAL_LAB_BASE_URL: http://mock-lab
-      EXTERNAL_LAB_API_KEY: test-api-key
-      EXTERNAL_LAB_JWT_SECRET: test-jwt-secret
-      MAIL_HOST: smtp.gmail.com
-      MAIL_PORT: 587
-      MAIL_USERNAME: "${MAIL_USERNAME}"
-      MAIL_PASSWORD: "${MAIL_PASSWORD}"
-      MAIL_FROM_NAME: "Laboratorio Clínico"
     depends_on:
       db:
         condition: service_healthy
@@ -32,7 +24,9 @@ services:
              composer update --no-interaction --no-progress &&
              php /app/database/seed.php &&
              php /app/database/seed_exam_catalog.php &&
+             php /app/database/seed_exam_catalog_labs.php &&
              php /app/database/seed_health_centers.php &&
+             php /app/database/seed_real_results.php &&
              php -S 0.0.0.0:8080 -t public public/router.php"
 
   db:

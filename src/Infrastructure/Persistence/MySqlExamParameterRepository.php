@@ -51,11 +51,11 @@ class MySqlExamParameterRepository implements ExamParameterRepositoryInterface
         $stmt = $this->connection->prepare(
             'INSERT INTO exam_parameters
                 (cups, codigo, nombre, unidad, valor_min_ref, valor_max_ref,
-                 tipo_resultado, etiqueta_booleano,
+                 tipo_resultado, etiqueta_booleano, comentario,
                  sexo, edad_min, edad_max, obligatorio, orden, activo)
              VALUES
                 (:cups, :codigo, :nombre, :unidad, :valor_min_ref, :valor_max_ref,
-                 :tipo_resultado, :etiqueta_booleano,
+                 :tipo_resultado, :etiqueta_booleano, :comentario,
                  :sexo, :edad_min, :edad_max, :obligatorio, :orden, :activo)'
         );
         $stmt->execute($this->toArray($p));
@@ -69,6 +69,7 @@ class MySqlExamParameterRepository implements ExamParameterRepositoryInterface
              SET cups = :cups, codigo = :codigo, nombre = :nombre, unidad = :unidad,
                  valor_min_ref = :valor_min_ref, valor_max_ref = :valor_max_ref,
                  tipo_resultado = :tipo_resultado, etiqueta_booleano = :etiqueta_booleano,
+                 comentario = :comentario,
                  sexo = :sexo, edad_min = :edad_min, edad_max = :edad_max,
                  obligatorio = :obligatorio, orden = :orden, activo = :activo
              WHERE id = :id'
@@ -102,6 +103,7 @@ class MySqlExamParameterRepository implements ExamParameterRepositoryInterface
             (bool) $row['activo'],
                    $row['tipo_resultado']    ?? ExamParameter::TIPO_NUMERICO,
                    $row['etiqueta_booleano'] ?? null,
+                   $row['comentario']        ?? null,
         );
     }
 
@@ -116,6 +118,7 @@ class MySqlExamParameterRepository implements ExamParameterRepositoryInterface
             'valor_max_ref'     => $p->getValorMaxRef(),
             'tipo_resultado'    => $p->getTipoResultado(),
             'etiqueta_booleano' => $p->getEtiquetaBooleano(),
+            'comentario'        => $p->getComentario(),
             'sexo'              => $p->getSexo(),
             'edad_min'          => $p->getEdadMin(),
             'edad_max'          => $p->getEdadMax(),

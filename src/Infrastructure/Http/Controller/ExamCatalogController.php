@@ -105,6 +105,7 @@ class ExamCatalogController
                 'orden'            => $p->getOrden(),
                 'tipoResultado'    => $p->getTipoResultado(),
                 'etiquetaBooleano' => $p->getEtiquetaBooleano(),
+                'comentario'       => $p->getComentario(),
                 'activo'           => $p->isActivo(),
             ], $params);
 
@@ -139,6 +140,7 @@ class ExamCatalogController
                 orden:            (int)  ($body['orden']       ?? 0),
                 tipoResultado:    $body['tipoResultado']    ?? 'numerico',
                 etiquetaBooleano: $body['etiquetaBooleano'] ?? null,
+                comentario:       $body['comentario']       ?? null,
             ));
 
             return $this->json($response, ['id' => $id, 'message' => 'Parámetro creado'], 201);
@@ -173,6 +175,7 @@ class ExamCatalogController
                 orden:            (int)  ($body['orden']       ?? 0),
                 tipoResultado:    $body['tipoResultado']    ?? 'numerico',
                 etiquetaBooleano: $body['etiquetaBooleano'] ?? null,
+                comentario:       $body['comentario']       ?? null,
             ));
 
             return $this->json($response, ['message' => 'Parámetro actualizado']);

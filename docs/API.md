@@ -48,7 +48,7 @@ Content-Type: application/json
 
 {
   "username": "admin",
-  "password": "admin123"
+  "password": "Admin1234!"
 }
 ```
 
@@ -62,7 +62,14 @@ Respuesta:
     "username": "admin",
     "email": "admin@clinicallab.local",
     "role": "admin",
-    "aliados": []
+    "aliados": [],
+    "health_centers": [],
+    "permissions": {
+      "canRegisterUsers": true,
+      "canCreateOrder": true,
+      "canViewOrders": true,
+      ...
+    }
   }
 }
 ```
@@ -83,6 +90,22 @@ Authorization: Bearer <token>
   "username": "aliado_norte",
   "role": "aliado_operator",
   "aliados": ["ALIADO-001"],
+  "health_centers": [],
+  "iss": "api-clinical-lab",
+  "iat": 1714204800,
+  "exp": 1714208400
+}
+```
+
+Para el rol `medico`, `health_centers` contiene los IDs de los centros de salud asignados y `aliados` estará vacío:
+
+```json
+{
+  "sub": 7,
+  "username": "dr_ramirez",
+  "role": "medico",
+  "aliados": [],
+  "health_centers": [1, 3],
   "iss": "api-clinical-lab",
   "iat": 1714204800,
   "exp": 1714208400
@@ -95,67 +118,69 @@ Authorization: Bearer <token>
 
 | Rol | Descripción |
 |---|---|
-| `admin` | Acceso total. Puede registrar usuarios y ver todas las órdenes sin restricción de aliado. |
+| `admin` | Acceso total. Puede registrar usuarios y ver todas las órdenes sin restricción. |
 | `lab_operator` | Operador interno. Crea y envía órdenes, registra resultados, lista todas las órdenes. |
-| `aliado_operator` | Operador de laboratorio aliado externo. Consulta y lista solo las órdenes de sus aliados, registra resultados. |
-| `viewer` | Solo lectura. Lista y consulta las órdenes de sus aliados. No puede crear ni modificar. |
+| `aliado_operator` | Operador de laboratorio aliado externo. Solo ve las órdenes de sus aliados asignados. |
+| `viewer` | Solo lectura. Lista y consulta las órdenes de sus aliados asignados. |
+| `medico` | Médico ordenante. Solo ve las órdenes de los centros de salud asignados a su usuario. |
 
 ### Matriz de acceso por endpoint
 
-| Endpoint | admin | lab_operator | aliado_operator | viewer |
-|---|:---:|:---:|:---:|:---:|
-| `POST /auth/login` | ✅ | ✅ | ✅ | ✅ |
-| `GET /auth/me` | ✅ | ✅ | ✅ | ✅ |
-| `POST /auth/register` | ✅ | ❌ | ❌ | ❌ |
-| `GET /health-centers` | ✅ | ✅ | ✅ | ✅ |
-| `POST /health-centers` | ✅ | ❌ | ❌ | ❌ |
-| `PUT /health-centers/{id}` | ✅ | ❌ | ❌ | ❌ |
-| `POST /health-centers/{id}/aliados/{aliadoId}` | ✅ | ❌ | ❌ | ❌ |
-| `DELETE /health-centers/{id}/aliados/{aliadoId}` | ✅ | ❌ | ❌ | ❌ |
-| `GET /aliados` | ✅ | ✅ | ✅ | ✅ |
-| `GET /aliados/{id}` | ✅ | ✅ | ✅ | ✅ |
-| `PUT /aliados/{id}` | ✅ | ❌ | ❌ | ❌ |
-| `POST /aliados/{id}/logo` | ✅ | ❌ | ❌ | ❌ |
-| `GET /aliados/{id}/bacteriologos` | ✅ | ✅ | ✅ | ✅ |
-| `POST /aliados/{id}/bacteriologos` | ✅ | ✅ | ❌ | ❌ |
-| `GET /bacteriologos/{id}` | ✅ | ✅ | ✅ | ✅ |
-| `PUT /bacteriologos/{id}` | ✅ | ✅ | ❌ | ❌ |
-| `DELETE /bacteriologos/{id}` | ✅ | ✅ | ❌ | ❌ |
-| `POST /bacteriologos/{id}/firma` | ✅ | ✅ | ❌ | ❌ |
-| `POST /aliados/{id}/logo` | ✅ | ❌ | ❌ | ❌ |
-| `GET /patients` | ✅ | ✅ | ❌ | ❌ |
-| `POST /patients` | ✅ | ✅ | ❌ | ❌ |
-| `GET /patients/{id}` | ✅ | ✅ | ❌ | ❌ |
-| `PUT /patients/{id}` | ✅ | ✅ | ❌ | ❌ |
-| `GET /medicos` | ✅ | ✅ | ✅ | ✅ |
-| `POST /medicos` | ✅ | ✅ | ❌ | ❌ |
-| `GET /medicos/{id}` | ✅ | ✅ | ✅ | ✅ |
-| `PUT /medicos/{id}` | ✅ | ✅ | ❌ | ❌ |
-| `DELETE /medicos/{id}` | ✅ | ✅ | ❌ | ❌ |
-| `GET /orders` | ✅ | ✅ | ✅ * | ✅ * |
-| `POST /orders` | ✅ | ✅ | ❌ | ❌ |
-| `GET /orders/{id}` | ✅ | ✅ | ✅ | ✅ |
-| `POST /orders/{id}/send` | ✅ | ✅ | ❌ | ❌ |
-| `GET /orders/{id}/results` | ✅ | ✅ | ✅ | ✅ |
-| `GET /orders/{id}/results/pdf` | ✅ | ✅ | ✅ | ✅ |
-| `POST /orders/{id}/results/attach-pdf` | ✅ | ✅ | ✅ | ❌ |
-| `POST /orders/{id}/results/send-email` | ✅ | ✅ | ✅ | ❌ |
-| `POST /results` | ✅ | ✅ | ✅ | ❌ |
-| `GET /aliados/{id}/orders/pending` | ✅ | ✅ | ✅ * | ❌ |
-| `POST /aliados/{id}/orders/mark-sent` | ✅ | ✅ | ❌ | ❌ |
-| `GET /exam-types` | ✅ | ✅ | ✅ | ✅ |
-| `POST /exam-types` | ✅ | ❌ | ❌ | ❌ |
-| `PUT /exam-types/{cups}` | ✅ | ❌ | ❌ | ❌ |
-| `GET /exam-types/{cups}/parameters` | ✅ | ✅ | ✅ | ✅ |
-| `POST /exam-types/{cups}/parameters` | ✅ | ❌ | ❌ | ❌ |
-| `PUT /exam-types/{cups}/parameters/{id}` | ✅ | ❌ | ❌ | ❌ |
-| `DELETE /exam-types/{cups}/parameters/{id}` | ✅ | ❌ | ❌ | ❌ |
-| `GET /exam-types/{cups}/parameters/{id}/ranges` | ✅ | ✅ | ✅ | ✅ |
-| `POST /exam-types/{cups}/parameters/{id}/ranges` | ✅ | ❌ | ❌ | ❌ |
-| `PUT /exam-types/{cups}/parameters/{id}/ranges/{rangeId}` | ✅ | ❌ | ❌ | ❌ |
-| `DELETE /exam-types/{cups}/parameters/{id}/ranges/{rangeId}` | ✅ | ❌ | ❌ | ❌ |
+| Endpoint | admin | lab_operator | aliado_operator | viewer | medico |
+|---|:---:|:---:|:---:|:---:|:---:|
+| `POST /auth/login` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `GET /auth/me` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `POST /auth/register` | ✅ | ❌ | ❌ | ❌ | ❌ |
+| `GET /health-centers` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `POST /health-centers` | ✅ | ❌ | ❌ | ❌ | ❌ |
+| `PUT /health-centers/{id}` | ✅ | ❌ | ❌ | ❌ | ❌ |
+| `POST /health-centers/{id}/aliados/{aliadoId}` | ✅ | ❌ | ❌ | ❌ | ❌ |
+| `DELETE /health-centers/{id}/aliados/{aliadoId}` | ✅ | ❌ | ❌ | ❌ | ❌ |
+| `GET /aliados` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `POST /aliados` | ✅ | ❌ | ❌ | ❌ | ❌ |
+| `GET /aliados/{id}` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `PUT /aliados/{id}` | ✅ | ❌ | ❌ | ❌ | ❌ |
+| `POST /aliados/{id}/logo` | ✅ | ❌ | ❌ | ❌ | ❌ |
+| `GET /aliados/{id}/bacteriologos` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `POST /aliados/{id}/bacteriologos` | ✅ | ✅ | ❌ | ❌ | ❌ |
+| `GET /bacteriologos/{id}` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `PUT /bacteriologos/{id}` | ✅ | ✅ | ❌ | ❌ | ❌ |
+| `DELETE /bacteriologos/{id}` | ✅ | ✅ | ❌ | ❌ | ❌ |
+| `POST /bacteriologos/{id}/firma` | ✅ | ✅ | ❌ | ❌ | ❌ |
+| `GET /patients` | ✅ | ✅ | ❌ | ❌ | ❌ |
+| `POST /patients` | ✅ | ✅ | ❌ | ❌ | ❌ |
+| `GET /patients/{id}` | ✅ | ✅ | ❌ | ❌ | ❌ |
+| `PUT /patients/{id}` | ✅ | ✅ | ❌ | ❌ | ❌ |
+| `GET /medicos` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `POST /medicos` | ✅ | ✅ | ❌ | ❌ | ❌ |
+| `GET /medicos/{id}` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `PUT /medicos/{id}` | ✅ | ✅ | ❌ | ❌ | ❌ |
+| `DELETE /medicos/{id}` | ✅ | ✅ | ❌ | ❌ | ❌ |
+| `GET /orders` | ✅ | ✅ | ✅ † | ✅ † | ✅ ‡ |
+| `POST /orders` | ✅ | ✅ | ❌ | ❌ | ❌ |
+| `GET /orders/{id}` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `POST /orders/{id}/send` | ✅ | ✅ | ❌ | ❌ | ❌ |
+| `GET /orders/{id}/results` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `GET /orders/{id}/results/pdf` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `POST /orders/{id}/results/attach-pdf` | ✅ | ✅ | ✅ | ❌ | ❌ |
+| `POST /orders/{id}/results/send-email` | ✅ | ✅ | ✅ | ❌ | ❌ |
+| `POST /results` | ✅ | ✅ | ✅ | ❌ | ❌ |
+| `GET /aliados/{id}/orders/pending` | ✅ | ✅ | ✅ † | ❌ | ❌ |
+| `POST /aliados/{id}/orders/mark-sent` | ✅ | ✅ | ❌ | ❌ | ❌ |
+| `GET /exam-types` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `POST /exam-types` | ✅ | ❌ | ❌ | ❌ | ❌ |
+| `PUT /exam-types/{cups}` | ✅ | ❌ | ❌ | ❌ | ❌ |
+| `GET /exam-types/{cups}/parameters` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `POST /exam-types/{cups}/parameters` | ✅ | ❌ | ❌ | ❌ | ❌ |
+| `PUT /exam-types/{cups}/parameters/{id}` | ✅ | ❌ | ❌ | ❌ | ❌ |
+| `DELETE /exam-types/{cups}/parameters/{id}` | ✅ | ❌ | ❌ | ❌ | ❌ |
+| `GET /exam-types/{cups}/parameters/{id}/ranges` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `POST /exam-types/{cups}/parameters/{id}/ranges` | ✅ | ❌ | ❌ | ❌ | ❌ |
+| `PUT /exam-types/{cups}/parameters/{id}/ranges/{rangeId}` | ✅ | ❌ | ❌ | ❌ | ❌ |
+| `DELETE /exam-types/{cups}/parameters/{id}/ranges/{rangeId}` | ✅ | ❌ | ❌ | ❌ | ❌ |
 
-> \* `aliado_operator` y `viewer` solo ven las órdenes de los aliados asignados a su usuario.
+> † `aliado_operator` y `viewer` solo ven las órdenes de los aliados asignados a su usuario.  
+> ‡ `medico` solo ve las órdenes de los centros de salud asignados a su usuario (`health_centers` en el JWT).
 
 **Portal de pacientes** — autenticación independiente con JWT de paciente (sin contraseña):
 
@@ -207,7 +232,7 @@ Autentica un usuario y retorna un JWT.
 ```json
 {
   "username": "aliado_norte",
-  "password": "aliado_norte123"
+  "password": "Aliado_norte1!"
 }
 ```
 
@@ -222,7 +247,15 @@ Autentica un usuario y retorna un JWT.
     "username": "aliado_norte",
     "email": "aliado_norte@clinicallab.local",
     "role": "aliado_operator",
-    "aliados": ["ALIADO-001"]
+    "aliados": ["ALIADO-001"],
+    "health_centers": [],
+    "permissions": {
+      "canRegisterUsers": false,
+      "canCreateOrder": false,
+      "canViewOrders": true,
+      "canStoreResult": true,
+      "canSendResultEmail": true
+    }
   }
 }
 ```
@@ -241,7 +274,7 @@ Autentica un usuario y retorna un JWT.
 
 #### `GET /auth/me`
 
-Retorna el perfil del usuario autenticado extraído del JWT.
+Retorna el perfil del usuario autenticado extraído del JWT, incluyendo sus permisos por rol.
 
 **Roles:** todos.
 
@@ -252,7 +285,35 @@ Retorna el perfil del usuario autenticado extraído del JWT.
   "id": 3,
   "username": "aliado_norte",
   "role": "aliado_operator",
-  "aliados": ["ALIADO-001"]
+  "aliados": ["ALIADO-001"],
+  "health_centers": [],
+  "permissions": {
+    "canRegisterUsers": false,
+    "canEditAliado": false,
+    "canCreateOrder": false,
+    "canViewOrders": true,
+    "canStoreResult": true,
+    "canAttachPdf": true,
+    "canSendResultEmail": true,
+    "canEditExamCatalog": false
+  }
+}
+```
+
+Para el rol `medico`:
+
+```json
+{
+  "id": 7,
+  "username": "dr_ramirez",
+  "role": "medico",
+  "aliados": [],
+  "health_centers": [1, 3],
+  "permissions": {
+    "canViewOrders": true,
+    "canCreateOrder": false,
+    "canStoreResult": false
+  }
 }
 ```
 
@@ -270,19 +331,32 @@ Crea un nuevo usuario en el sistema.
 |---|---|:---:|---|
 | `username` | string | ✅ | Nombre de usuario único |
 | `email` | string | ✅ | Email único |
-| `password` | string | ✅ | Contraseña en texto plano |
-| `role` | string | ✅ | Uno de: `admin`, `lab_operator`, `aliado_operator`, `viewer` |
-| `aliados` | string[] | ❌ | IDs de aliados asignados al usuario |
+| `password` | string | ✅ | Contraseña (mínimo 8 caracteres, mayúscula, minúscula, número y carácter especial) |
+| `role` | string | ✅ | Uno de: `admin`, `lab_operator`, `aliado_operator`, `viewer`, `medico` |
+| `aliados` | string[] | ❌ | IDs de aliados asignados (aplica a `aliado_operator` y `viewer`) |
+| `health_centers` | int[] | ❌ | IDs de centros de salud asignados (aplica principalmente a `medico`) |
 
-**Ejemplo:**
+**Ejemplo — aliado operator:**
 
 ```json
 {
   "username": "nuevo_operador",
   "email": "nuevo@clinicallab.local",
-  "password": "segura1234",
+  "password": "Segura1234!",
   "role": "aliado_operator",
   "aliados": ["ALIADO-001", "ALIADO-002"]
+}
+```
+
+**Ejemplo — médico:**
+
+```json
+{
+  "username": "dr_ramirez",
+  "email": "ramirez@clinica.com",
+  "password": "Medico2024!",
+  "role": "medico",
+  "health_centers": [1, 3]
 }
 ```
 
@@ -304,6 +378,77 @@ Crea un nuevo usuario en el sistema.
 `403 Forbidden`
 ```json
 { "error": "No tienes permisos para esta acción" }
+```
+
+---
+
+#### `GET /auth/password-policy`
+
+Devuelve la descripción de la política de contraseñas.
+
+**Pública** — no requiere token.
+
+**Respuesta `200 OK`:**
+
+```json
+{
+  "policy": "Mínimo 8 caracteres, al menos una mayúscula, una minúscula, un número y un carácter especial",
+  "minLength": 8,
+  "requireUppercase": true,
+  "requireLowercase": true,
+  "requireDigit": true,
+  "requireSpecial": true,
+  "allowedSpecial": "!@#$%^&*()_+-=[]{}|;':\",./<>?"
+}
+```
+
+---
+
+#### `POST /auth/password-reset/request`
+
+Solicita un enlace de recuperación de contraseña. Siempre responde `200` para no revelar si el email existe.
+
+**Pública** — no requiere token.
+
+**Request body:**
+
+| Campo | Tipo | Requerido | Descripción |
+|---|---|:---:|---|
+| `email` | string | ✅ | Email del usuario |
+
+**Respuesta `200 OK`:**
+
+```json
+{
+  "message": "Si el correo está registrado, recibirás un enlace de recuperación en los próximos minutos."
+}
+```
+
+---
+
+#### `POST /auth/password-reset/confirm`
+
+Confirma el restablecimiento de contraseña con el token recibido por email.
+
+**Pública** — no requiere token.
+
+**Request body:**
+
+| Campo | Tipo | Requerido | Descripción |
+|---|---|:---:|---|
+| `token` | string | ✅ | Token de recuperación recibido por email |
+| `password` | string | ✅ | Nueva contraseña (cumple la política) |
+
+**Respuesta `200 OK`:**
+
+```json
+{ "message": "Contraseña actualizada correctamente. Ya puedes iniciar sesión." }
+```
+
+`422 Unprocessable Entity`
+```json
+{ "error": "Token inválido o expirado" }
+{ "error": "Los campos token y password son requeridos" }
 ```
 
 ---
@@ -337,26 +482,37 @@ Lista todos los aliados con su perfil completo.
 
 ---
 
+#### `POST /aliados`
+
+Crea un nuevo aliado.
+
+**Roles:** `admin`.
+
+**Request body:**
+
+| Campo | Tipo | Requerido | Descripción |
+|---|---|:---:|---|
+| `id` | string | ✅ | Identificador único del aliado (ej: `ALIADO-003`) |
+| `nombre` | string | ✅ | Nombre del aliado |
+| `nit` | string | ❌ | NIT o número de identificación tributaria |
+| `direccion` | string | ❌ | Dirección física |
+| `email` | string | ❌ | Correo de contacto |
+| `activo` | bool | ❌ | Default `true` |
+
+**Respuesta `201 Created`:**
+```json
+{ "id": "ALIADO-003", "message": "Aliado creado" }
+```
+
+---
+
 #### `GET /aliados/{id}`
 
 Retorna el perfil completo de un aliado.
 
 **Roles:** todos.
 
-**Path param:** `id` — ID del aliado (ej: `ALIADO-001`).
-
-**Respuesta `200 OK`:**
-```json
-{
-  "id": "ALIADO-001",
-  "nombre": "Laboratorio Clínico Norte",
-  "nit": "900123456-7",
-  "direccion": "Calle 100 # 15-20, Bogotá",
-  "email": "contacto@labnorte.com",
-  "logoPath": "/storage/logos/aliado-001_logo.png",
-  "activo": true
-}
-```
+**Respuesta `200 OK`:** mismo formato que el listado.
 
 `404 Not Found`
 ```json
@@ -367,7 +523,7 @@ Retorna el perfil completo de un aliado.
 
 #### `PUT /aliados/{id}`
 
-Actualiza el perfil de un aliado (nombre, NIT, dirección, email, estado activo). El logotipo se actualiza por endpoint separado.
+Actualiza el perfil de un aliado.
 
 **Roles:** `admin`.
 
@@ -376,21 +532,10 @@ Actualiza el perfil de un aliado (nombre, NIT, dirección, email, estado activo)
 | Campo | Tipo | Requerido | Descripción |
 |---|---|:---:|---|
 | `nombre` | string | ✅ | Nombre del aliado |
-| `nit` | string | ❌ | NIT o número de identificación tributaria |
+| `nit` | string | ❌ | NIT |
 | `direccion` | string | ❌ | Dirección física |
 | `email` | string | ❌ | Correo de contacto |
-| `activo` | bool | ❌ | Estado activo (default: mantiene el actual) |
-
-**Ejemplo:**
-```json
-{
-  "nombre": "Laboratorio Clínico Norte S.A.",
-  "nit": "900123456-7",
-  "direccion": "Calle 100 # 15-20, Bogotá",
-  "email": "contacto@labnorte.com",
-  "activo": true
-}
-```
+| `activo` | bool | ❌ | Estado activo |
 
 **Respuesta `200 OK`:**
 ```json
@@ -418,9 +563,9 @@ Sube o reemplaza el logotipo del aliado. Acepta PNG o JPG, máximo 2 MB.
 
 **Content-Type:** `multipart/form-data`
 
-| Campo | Tipo | Requerido | Descripción |
-|---|---|:---:|---|
-| `logo` | file | ✅ | Imagen PNG o JPG, máx 2 MB |
+| Campo | Tipo | Requerido |
+|---|---|:---:|
+| `logo` | file (PNG/JPG) | ✅ |
 
 **Respuesta `200 OK`:**
 ```json
@@ -430,24 +575,15 @@ Sube o reemplaza el logotipo del aliado. Acepta PNG o JPG, máximo 2 MB.
 }
 ```
 
-`422 Unprocessable Entity`
-```json
-{ "error": "Formato no permitido. Use PNG o JPG" }
-{ "error": "El archivo supera el tamaño máximo de 2 MB" }
-{ "error": "Se requiere el campo \"logo\" como archivo multipart" }
-```
-
 ---
 
 ### Bacteriólogos
-
-Catálogo de bacteriólogos asociados a un aliado. Cada bacteriólogo tiene número de tarjeta profesional, universidad de egreso y firma digital (PNG/JPG) que aparece en el PDF del informe de resultados.
 
 ---
 
 #### `GET /aliados/{aliadoId}/bacteriologos`
 
-Lista los bacteriólogos activos de un aliado.
+Lista los bacteriólogos de un aliado.
 
 **Roles:** todos.
 
@@ -486,7 +622,7 @@ Crea un nuevo bacteriólogo asociado al aliado.
 
 | Campo | Tipo | Requerido | Descripción |
 |---|---|:---:|---|
-| `tipoDocumento` | string | ✅ | Tipo de documento (`CC`, `TP`, etc.) |
+| `tipoDocumento` | string | ✅ | `CC`, `TP`, etc. |
 | `identificacion` | string | ✅ | Número de documento |
 | `nombre` | string | ✅ | Nombre completo |
 | `tarjetaProfesional` | string | ❌ | Número de tarjeta profesional |
@@ -507,25 +643,13 @@ Crea un nuevo bacteriólogo asociado al aliado.
 }
 ```
 
-`422 Unprocessable Entity`
-```json
-{ "error": "Ya existe un bacteriólogo con ese documento" }
-```
-
 ---
 
 #### `GET /bacteriologos/{id}`
 
-Retorna el detalle de un bacteriólogo.
+Detalle de un bacteriólogo.
 
 **Roles:** todos.
-
-**Respuesta `200 OK`:** mismo formato que el listado.
-
-`404 Not Found`
-```json
-{ "error": "Bacteriólogo no encontrado: 99" }
-```
 
 ---
 
@@ -535,7 +659,7 @@ Actualiza los datos de un bacteriólogo.
 
 **Roles:** `admin`, `lab_operator`.
 
-**Request body:** mismos campos que `POST /aliados/{aliadoId}/bacteriologos` más `activo`.
+**Request body:** mismos campos que `POST` más `activo` (bool).
 
 **Respuesta `200 OK`:**
 ```json
@@ -559,15 +683,15 @@ Desactiva un bacteriólogo (soft delete).
 
 #### `POST /bacteriologos/{id}/firma`
 
-Sube o reemplaza la firma digital del bacteriólogo. La firma aparece en el PDF del informe de resultados.
+Sube o reemplaza la firma digital del bacteriólogo. Aparece en el PDF del informe.
 
 **Roles:** `admin`, `lab_operator`.
 
 **Content-Type:** `multipart/form-data`
 
-| Campo | Tipo | Requerido | Descripción |
-|---|---|:---:|---|
-| `firma` | file | ✅ | Imagen PNG o JPG, máx 2 MB |
+| Campo | Tipo | Requerido |
+|---|---|:---:|
+| `firma` | file (PNG/JPG, máx 2 MB) | ✅ |
 
 **Respuesta `200 OK`:**
 ```json
@@ -577,23 +701,15 @@ Sube o reemplaza la firma digital del bacteriólogo. La firma aparece en el PDF 
 }
 ```
 
-`422 Unprocessable Entity`
-```json
-{ "error": "Formato no permitido. Use PNG o JPG" }
-{ "error": "El archivo supera el tamaño máximo de 2 MB" }
-```
-
 ---
 
 ### Centros de salud
-
-Catálogo de centros de salud con su relación a aliados. Un aliado puede atender múltiples centros y un centro puede estar asociado a múltiples aliados.
 
 ---
 
 #### `GET /health-centers`
 
-Lista los centros de salud activos.
+Lista los centros de salud.
 
 **Roles:** todos.
 
@@ -601,15 +717,8 @@ Lista los centros de salud activos.
 
 | Parámetro | Tipo | Descripción |
 |---|---|---|
-| `activo` | `0`\|`1` | `0` incluye también inactivos (default: `1`) |
-| `aliado_id` | string | Filtra solo los centros asociados a ese aliado |
-
-**Ejemplos:**
-```
-GET /health-centers
-GET /health-centers?aliado_id=ALIADO-001
-GET /health-centers?activo=0
-```
+| `activo` | `0`\|`1` | `0` incluye inactivos (default: `1`) |
+| `aliado_id` | string | Filtra solo los centros del aliado indicado |
 
 **Respuesta `200 OK`:**
 ```json
@@ -643,16 +752,6 @@ Crea un nuevo centro de salud.
 | `telefono` | string | ❌ | Teléfono de contacto |
 | `activo` | bool | ❌ | Default `true` |
 
-**Ejemplo:**
-```json
-{
-  "nombre": "Hospital Universitario",
-  "ciudad": "Barranquilla",
-  "direccion": "Calle 30 # 45-10",
-  "telefono": "605-3601234"
-}
-```
-
 **Respuesta `201 Created`:**
 ```json
 { "id": 5, "message": "Centro de salud creado" }
@@ -662,7 +761,7 @@ Crea un nuevo centro de salud.
 
 #### `PUT /health-centers/{id}`
 
-Actualiza un centro de salud existente.
+Actualiza un centro de salud.
 
 **Roles:** `admin`.
 
@@ -673,20 +772,13 @@ Actualiza un centro de salud existente.
 { "message": "Centro de salud actualizado" }
 ```
 
-`404 Not Found`
-```json
-{ "error": "Centro de salud no encontrado: 99" }
-```
-
 ---
 
 #### `POST /health-centers/{id}/aliados/{aliadoId}`
 
 Asocia un aliado a un centro de salud.
 
-**Roles:** `admin`.
-
-**Sin body.**
+**Roles:** `admin`. Sin body.
 
 **Respuesta `200 OK`:**
 ```json
@@ -710,13 +802,13 @@ Desasocia un aliado de un centro de salud.
 
 ### Pacientes
 
-Los pacientes se crean automáticamente al registrar una orden si no existen (identificados por `tipoDeDocumento` + `identificacion`). Si ya existen, se reutilizan sin modificar sus datos. También pueden crearse y editarse directamente desde este endpoint.
+Los pacientes se crean automáticamente al registrar una orden (identificados por `tipoDeDocumento` + `identificacion`). También pueden gestionarse directamente desde estos endpoints.
 
 ---
 
 #### `GET /patients`
 
-Lista pacientes con búsqueda opcional por nombre o identificación.
+Lista pacientes con búsqueda opcional.
 
 **Roles:** `admin`, `lab_operator`.
 
@@ -727,13 +819,6 @@ Lista pacientes con búsqueda opcional por nombre o identificación.
 | `q` | string | Búsqueda parcial por nombre o identificación |
 | `page` | int | Número de página (default: `1`) |
 | `limit` | int | Resultados por página, máximo `100` (default: `20`) |
-
-**Ejemplos:**
-```
-GET /patients
-GET /patients?q=Carlos
-GET /patients?q=1020304050
-```
 
 **Respuesta `200 OK`:**
 ```json
@@ -763,7 +848,7 @@ GET /patients?q=1020304050
 
 #### `POST /patients`
 
-Crea un paciente directamente (sin necesidad de crear una orden).
+Crea un paciente directamente.
 
 **Roles:** `admin`, `lab_operator`.
 
@@ -771,26 +856,13 @@ Crea un paciente directamente (sin necesidad de crear una orden).
 
 | Campo | Tipo | Requerido | Descripción |
 |---|---|:---:|---|
-| `tipoDocumento` | string | ✅ | Tipo de documento (`CC`, `TI`, `PA`, `CE`, etc.) |
+| `tipoDocumento` | string | ✅ | `CC`, `TI`, `PA`, `CE`, etc. |
 | `identificacion` | string | ✅ | Número de documento |
 | `nombre` | string | ✅ | Nombre completo |
 | `sexo` | string | ✅ | `M` o `F` |
 | `fechaNacimiento` | string | ✅ | Formato `YYYY-MM-DD` |
-| `email` | string | ❌ | Correo electrónico (requerido para el portal de pacientes) |
+| `email` | string | ❌ | Correo (requerido para portal de pacientes) |
 | `telefono` | string | ❌ | Teléfono de contacto |
-
-**Ejemplo:**
-```json
-{
-  "tipoDocumento": "CC",
-  "identificacion": "1020304050",
-  "nombre": "Carlos Andrés Pérez López",
-  "sexo": "M",
-  "fechaNacimiento": "1985-03-15",
-  "email": "carlos.perez@correo.com",
-  "telefono": "3001234567"
-}
-```
 
 **Respuesta `201 Created`:**
 ```json
@@ -806,23 +878,13 @@ Crea un paciente directamente (sin necesidad de crear una orden).
 }
 ```
 
-`422 Unprocessable Entity`
-```json
-{ "error": "Campo requerido: nombre" }
-{ "error": "Ya existe un paciente con ese tipo y número de documento" }
-{ "error": "fechaNacimiento debe tener formato YYYY-MM-DD" }
-{ "error": "sexo debe ser M o F" }
-```
-
 ---
 
 #### `GET /patients/{id}`
 
-Retorna el detalle de un paciente con el historial de sus órdenes.
+Detalle de un paciente con historial de órdenes.
 
 **Roles:** `admin`, `lab_operator`.
-
-**Path param:** `id` — ID numérico del paciente.
 
 **Respuesta `200 OK`:**
 ```json
@@ -848,66 +910,29 @@ Retorna el detalle de un paciente con el historial de sus órdenes.
 }
 ```
 
-`404 Not Found`
-```json
-{ "error": "Paciente no encontrado: 99" }
-```
-
 ---
 
 #### `PUT /patients/{id}`
 
-Actualiza los datos de un paciente existente. Solo se modifican los campos enviados.
+Actualiza los datos de un paciente. Solo se modifican los campos enviados.
 
 **Roles:** `admin`, `lab_operator`.
 
-**Path param:** `id` — ID numérico del paciente.
+**Request body:** todos los campos son opcionales (mismos que `POST`). Enviar `""` para borrar `email` o `telefono`.
 
-**Request body** (todos opcionales — solo se actualizan los campos enviados):
-
-| Campo | Tipo | Descripción |
-|---|---|---|
-| `tipoDocumento` | string | Tipo de documento |
-| `identificacion` | string | Número de documento |
-| `nombre` | string | Nombre completo |
-| `sexo` | string | `M` o `F` |
-| `fechaNacimiento` | string | Formato `YYYY-MM-DD` |
-| `email` | string | Correo electrónico (enviar `""` para borrar) |
-| `telefono` | string | Teléfono (enviar `""` para borrar) |
-
-**Ejemplo:**
-```json
-{
-  "email": "nuevo@correo.com",
-  "telefono": "3109876543"
-}
-```
-
-**Respuesta `200 OK`:** mismo formato que `GET /patients/{id}` (sin el historial de órdenes).
-
-`404 Not Found`
-```json
-{ "error": "Paciente no encontrado: 99" }
-```
-
-`422 Unprocessable Entity`
-```json
-{ "error": "Ya existe otro paciente con ese tipo y número de documento" }
-{ "error": "fechaNacimiento debe tener formato YYYY-MM-DD" }
-{ "error": "sexo debe ser M o F" }
-```
+**Respuesta `200 OK`:** mismo formato que `GET /patients/{id}` sin el historial.
 
 ---
 
 ### Médicos
 
-Catálogo de médicos que ordenan exámenes. Pueden vincularse opcionalmente a un usuario del sistema. Al crear una orden se puede referenciar el médico por `medicoId` o por documento (`tipoDocumentoMedico` + `identificacionMedico`).
+Catálogo de médicos que ordenan exámenes. Pueden vincularse opcionalmente a un usuario del sistema con rol `medico`.
 
 ---
 
 #### `GET /medicos`
 
-Lista médicos con búsqueda opcional.
+Lista médicos.
 
 **Roles:** todos.
 
@@ -916,7 +941,7 @@ Lista médicos con búsqueda opcional.
 | Parámetro | Tipo | Descripción |
 |---|---|---|
 | `q` | string | Búsqueda parcial por nombre o identificación |
-| `activo` | `0`\|`1` | `0` incluye también inactivos (default: `1`) |
+| `activo` | `0`\|`1` | `0` incluye inactivos (default: `1`) |
 
 **Respuesta `200 OK`:**
 ```json
@@ -946,24 +971,12 @@ Crea un nuevo médico.
 
 | Campo | Tipo | Requerido | Descripción |
 |---|---|:---:|---|
-| `tipoDocumento` | string | ✅ | Tipo de documento (`CC`, `TP`, etc.) |
+| `tipoDocumento` | string | ✅ | Tipo de documento |
 | `identificacion` | string | ✅ | Número de documento |
 | `nombre` | string | ✅ | Nombre completo |
 | `especialidad` | string | ❌ | Especialidad médica |
 | `registroMedico` | string | ❌ | Número de registro profesional |
-| `userId` | int | ❌ | ID de usuario del sistema a vincular (único por médico) |
-
-**Ejemplo:**
-```json
-{
-  "tipoDocumento": "CC",
-  "identificacion": "12345678",
-  "nombre": "Dr. Juan Rodríguez",
-  "especialidad": "Medicina General",
-  "registroMedico": "RM-12345",
-  "userId": 3
-}
-```
+| `userId` | int | ❌ | ID de usuario del sistema a vincular (único por médico, rol `medico`) |
 
 **Respuesta `201 Created`:**
 ```json
@@ -979,35 +992,19 @@ Crea un nuevo médico.
 }
 ```
 
-`422 Unprocessable Entity`
-```json
-{ "error": "Ya existe un médico con ese documento" }
-{ "error": "Usuario no encontrado: 99" }
-{ "error": "Ese usuario ya tiene un médico asociado" }
-```
-
 ---
 
 #### `GET /medicos/{id}`
 
-Retorna el detalle de un médico.
-
-**Roles:** todos.
-
-`404 Not Found`
-```json
-{ "error": "Médico no encontrado: 99" }
-```
+Detalle de un médico. **Roles:** todos.
 
 ---
 
 #### `PUT /medicos/{id}`
 
-Actualiza los datos de un médico. Solo se modifican los campos enviados.
+Actualiza un médico. **Roles:** `admin`, `lab_operator`.
 
-**Roles:** `admin`, `lab_operator`.
-
-**Request body:** mismos campos que `POST /medicos` (todos opcionales).
+**Request body:** mismos campos que `POST` (todos opcionales).
 
 **Respuesta `200 OK`:** mismo formato que `GET /medicos/{id}`.
 
@@ -1015,9 +1012,7 @@ Actualiza los datos de un médico. Solo se modifican los campos enviados.
 
 #### `DELETE /medicos/{id}`
 
-Desactiva un médico (soft delete).
-
-**Roles:** `admin`, `lab_operator`.
+Desactiva un médico (soft delete). **Roles:** `admin`, `lab_operator`.
 
 **Respuesta `200 OK`:**
 ```json
@@ -1032,31 +1027,24 @@ Desactiva un médico (soft delete).
 
 #### `GET /orders`
 
-Lista órdenes con filtros opcionales y paginación. Los resultados se ordenan por `fecha_orden` descendente (más recientes primero).
+Lista órdenes con filtros opcionales y paginación, ordenadas por `fecha_orden` descendente.
 
-**Roles:** todos (con restricción de aliado para `aliado_operator` y `viewer`).
+**Roles:** todos.  
+**Restricciones automáticas:**
+- `aliado_operator` / `viewer` → solo órdenes de sus aliados asignados
+- `medico` → solo órdenes de sus centros de salud asignados (`health_centers` del JWT)
+- `admin` / `lab_operator` → sin restricción
 
 **Query params:**
 
 | Parámetro | Tipo | Descripción |
 |---|---|---|
-| `estado` | string | Filtra por estado: `pending`, `sent` o `completed` |
-| `fecha_desde` | string | Fecha mínima de la orden. Formato `YYYY-MM-DD` |
-| `fecha_hasta` | string | Fecha máxima de la orden. Formato `YYYY-MM-DD` |
-| `cups` | string | Filtra órdenes que contengan ese código CUPS en sus detalles |
-| `page` | int | Número de página (default: `1`) |
-| `limit` | int | Resultados por página, máximo `100` (default: `20`) |
-
-**Ejemplos:**
-
-```
-GET /orders
-GET /orders?estado=pending
-GET /orders?fecha_desde=2025-04-01&fecha_hasta=2025-04-30
-GET /orders?cups=903820
-GET /orders?estado=completed&cups=904855&page=1&limit=10
-GET /orders?fecha_desde=2025-04-15&estado=sent
-```
+| `estado` | string | `pending`, `sent` o `completed` |
+| `fecha_desde` | string | Formato `YYYY-MM-DD` |
+| `fecha_hasta` | string | Formato `YYYY-MM-DD` |
+| `cups` | string | Filtra órdenes que contengan ese código CUPS |
+| `page` | int | Default: `1` |
+| `limit` | int | Máximo `100` (default: `20`) |
 
 **Respuesta `200 OK`:**
 
@@ -1088,18 +1076,11 @@ GET /orders?fecha_desde=2025-04-15&estado=sent
 }
 ```
 
-`422 Unprocessable Entity`
-```json
-{ "error": "Estado inválido. Valores permitidos: pending, sent, completed" }
-{ "error": "fecha_desde debe tener formato YYYY-MM-DD" }
-{ "error": "fecha_hasta debe tener formato YYYY-MM-DD" }
-```
-
 ---
 
 #### `POST /orders`
 
-Crea una nueva orden de laboratorio con sus exámenes.
+Crea una nueva orden de laboratorio.
 
 **Roles:** `admin`, `lab_operator`.
 
@@ -1108,39 +1089,39 @@ Crea una nueva orden de laboratorio con sus exámenes.
 | Campo | Tipo | Requerido | Descripción |
 |---|---|:---:|---|
 | `idSolicitudKey` | string | ✅ | Identificador único de la solicitud |
-| `idAdmision` | string | ✅ | ID de admisión del paciente |
+| `idAdmision` | string | ✅ | ID de admisión |
 | `idAtencion` | string | ❌ | ID de atención |
-| `tipoDeDocumento` | string | ✅ | Tipo de documento (`CC`, `TI`, `PA`, `CE`, etc.) |
+| `tipoDeDocumento` | string | ✅ | `CC`, `TI`, `PA`, `CE`, etc. |
 | `identificacion` | string | ✅ | Número de documento del paciente |
 | `nombreDelPaciente` | string | ✅ | Nombre completo |
 | `sexo` | string | ✅ | `M` o `F` |
-| `fechaDeNacimiento` | string | ✅ | Formato `YYYY-MM-DD` |
+| `fechaDeNacimiento` | string | ✅ | `YYYY-MM-DD` |
 | `centroDeSalud` | string | ✅ | Nombre del centro de salud |
-| `fechaDeLaOrden` | string | ✅ | Formato `YYYY-MM-DD HH:MM:SS` |
-| `medicoQueOrdena` | string | ✅ | Nombre del médico |
+| `fechaDeLaOrden` | string | ✅ | `YYYY-MM-DD HH:MM:SS` |
+| `medicoQueOrdena` | string | ✅ | Nombre del médico ordenante |
 | `numeroDeAutorizacion` | string | ❌ | Número de autorización del seguro |
 | `idAliado` | string | ❌ | ID del laboratorio aliado destino |
-| `healthCenterId` | int | ❌ | ID del centro de salud del catálogo. Si se omite, se busca por nombre en `centroDeSalud` |
-| `medicoId` | int | ❌ | ID del médico del catálogo. Tiene prioridad sobre `tipoDocumentoMedico` + `identificacionMedico` |
+| `healthCenterId` | int | ❌ | ID del centro de salud del catálogo (prioridad sobre nombre en `centroDeSalud`) |
+| `medicoId` | int | ❌ | ID del médico del catálogo (prioridad sobre documento) |
 | `tipoDocumentoMedico` | string | ❌ | Tipo de documento del médico (alternativa a `medicoId`) |
 | `identificacionMedico` | string | ❌ | Número de documento del médico (alternativa a `medicoId`) |
 | `porcEjecucion` | string | ❌ | Porcentaje inicial (default `"0"`) |
-| `detalles` | array | ✅ | Mínimo 1 examen (ver estructura abajo) |
+| `detalles` | array | ✅ | Mínimo 1 examen |
 
 **Estructura de cada detalle:**
 
-| Campo | Tipo | Requerido | Descripción |
-|---|---|:---:|---|
-| `cups` | string | ✅ | Código CUPS del examen |
-| `nombreDelLaboratorio` | string | ✅ | Nombre del examen |
-| `fechaTomaMuestra` | string\|null | ❌ | Formato `YYYY-MM-DD HH:MM:SS` |
-| `metodo` | string\|null | ❌ | Método de análisis |
-| `reactivo` | string\|null | ❌ | Reactivo utilizado |
-| `invima` | string\|null | ❌ | Registro INVIMA |
-| `estadoDelResultado` | string\|null | ❌ | Estado del resultado |
-| `fechaResultado` | string\|null | ❌ | Fecha del resultado |
-| `tipoIdentificacionDelBacteriologo` | string\|null | ❌ | Tipo de doc del bacteriólogo |
-| `identificacionDelBacteriologo` | string\|null | ❌ | Documento del bacteriólogo |
+| Campo | Tipo | Requerido |
+|---|---|:---:|
+| `cups` | string | ✅ |
+| `nombreDelLaboratorio` | string | ✅ |
+| `fechaTomaMuestra` | string\|null | ❌ |
+| `metodo` | string\|null | ❌ |
+| `reactivo` | string\|null | ❌ |
+| `invima` | string\|null | ❌ |
+| `estadoDelResultado` | string\|null | ❌ |
+| `fechaResultado` | string\|null | ❌ |
+| `tipoIdentificacionDelBacteriologo` | string\|null | ❌ |
+| `identificacionDelBacteriologo` | string\|null | ❌ |
 
 **Ejemplo:**
 
@@ -1157,15 +1138,11 @@ Crea una nueva orden de laboratorio con sus exámenes.
   "fechaDeLaOrden": "2025-05-02 09:00:00",
   "medicoQueOrdena": "Dr. Juan Rodríguez",
   "idAliado": "ALIADO-001",
+  "healthCenterId": 1,
+  "medicoId": 1,
   "detalles": [
-    {
-      "cups": "903820",
-      "nombreDelLaboratorio": "Hemograma Completo"
-    },
-    {
-      "cups": "904010",
-      "nombreDelLaboratorio": "Glucosa en Ayunas"
-    }
+    { "cups": "903820", "nombreDelLaboratorio": "Hemograma Completo" },
+    { "cups": "904010", "nombreDelLaboratorio": "Glucosa en Ayunas" }
   ]
 }
 ```
@@ -1177,6 +1154,7 @@ Crea una nueva orden de laboratorio con sus exámenes.
   "idSolicitudKey": "SOL-2025-0099",
   "estadoDeLaOrden": "pending",
   "porcEjecucion": 0,
+  "medicoId": 1,
   "detalles": 2
 }
 ```
@@ -1187,9 +1165,7 @@ Crea una nueva orden de laboratorio con sus exámenes.
 
 Retorna una orden con todos sus detalles.
 
-**Roles:** `admin`, `lab_operator`, `aliado_operator`, `viewer`.
-
-**Path param:** `id` — valor de `idSolicitudKey`.
+**Roles:** todos.
 
 **Respuesta `200 OK`:**
 
@@ -1220,28 +1196,21 @@ Retorna una orden con todos sus detalles.
 }
 ```
 
-`404 Not Found`
-```json
-{ "error": "Orden no encontrada" }
-```
-
-**Estados posibles de `estadoDeLaOrden`:**
+**Estados posibles:**
 
 | Estado | Descripción |
 |---|---|
-| `pending` | Orden creada, pendiente de envío al laboratorio externo |
-| `sent` | Enviada al laboratorio externo, esperando resultados |
-| `completed` | Al menos un resultado registrado (`porcEjecucion = 100`) |
+| `pending` | Creada, pendiente de envío |
+| `sent` | Enviada al laboratorio externo |
+| `completed` | Al menos un resultado registrado |
 
 ---
 
 #### `POST /orders/{id}/send`
 
-Envía la orden al laboratorio aliado externo mediante HTTP con autenticación JWT + API Key.
+Envía la orden al laboratorio aliado externo.
 
 **Roles:** `admin`, `lab_operator`.
-
-**Path param:** `id` — valor de `idSolicitudKey`.
 
 **Sin body.**
 
@@ -1255,33 +1224,17 @@ Envía la orden al laboratorio aliado externo mediante HTTP con autenticación J
 }
 ```
 
-`404 Not Found`
-```json
-{ "error": "Orden no encontrada" }
-```
-
-`502 Bad Gateway`
-```json
-{ "error": "Fallo al enviar orden: Connection timed out" }
-```
-
 ---
 
 ### Servicios por aliado
-
-Endpoints especializados para operar sobre las órdenes de un aliado específico sin necesidad de filtros adicionales.
 
 ---
 
 #### `GET /aliados/{aliadoId}/orders/pending`
 
-Retorna todas las órdenes en estado `pending` para el aliado indicado, ordenadas por `fecha_orden` descendente.
+Retorna todas las órdenes en estado `pending` del aliado, ordenadas por `fecha_orden` descendente.
 
 **Roles:** `admin`, `lab_operator`, `aliado_operator`.
-
-**Path param:** `aliadoId` — ID del aliado (ej: `ALIADO-001`).
-
-**Sin query params ni body.**
 
 **Respuesta `200 OK`:**
 
@@ -1305,38 +1258,23 @@ Retorna todas las órdenes en estado `pending` para el aliado indicado, ordenada
 }
 ```
 
-`404 Not Found`
-```json
-{ "error": "Aliado no encontrado: ALIADO-999" }
-```
-
 ---
 
 #### `POST /aliados/{aliadoId}/orders/mark-sent`
 
-Marca como `sent` una lista de órdenes del aliado. Procesa cada orden de forma independiente:
-
-- Si la orden **no existe** → se omite con razón `Orden no encontrada`
-- Si la orden **no pertenece al aliado** → se omite con razón `La orden no pertenece al aliado`
-- Si la orden **no está en `pending`** → se omite con razón `Estado inválido: <estado> (se requiere pending)`
-- Si cumple todas las condiciones → se actualiza a `sent` y se registra `fecha_envio`
+Marca como `sent` una lista de órdenes del aliado.
 
 **Roles:** `admin`, `lab_operator`.
 
-**Path param:** `aliadoId` — ID del aliado.
-
 **Request body:**
 
-| Campo | Tipo | Requerido | Descripción |
-|---|---|:---:|---|
-| `orders` | string[] | ✅ | Lista de `idSolicitudKey` a marcar como enviadas |
+| Campo | Tipo | Requerido |
+|---|---|:---:|
+| `orders` | string[] | ✅ |
 
 **Ejemplo:**
-
 ```json
-{
-  "orders": ["SOL-2025-0007", "SOL-2025-0011", "SOL-2025-0099"]
-}
+{ "orders": ["SOL-2025-0007", "SOL-2025-0011"] }
 ```
 
 **Respuesta `200 OK`:**
@@ -1344,26 +1282,14 @@ Marca como `sent` una lista de órdenes del aliado. Procesa cada orden de forma 
 ```json
 {
   "aliadoId": "ALIADO-001",
-  "totalRecibidas": 3,
+  "totalRecibidas": 2,
   "totalActualizadas": 1,
-  "totalOmitidas": 2,
+  "totalOmitidas": 1,
   "actualizadas": ["SOL-2025-0007"],
   "omitidas": {
-    "SOL-2025-0011": "La orden no pertenece al aliado",
-    "SOL-2025-0099": "Orden no encontrada"
+    "SOL-2025-0011": "La orden no pertenece al aliado"
   }
 }
-```
-
-`404 Not Found`
-```json
-{ "error": "Aliado no encontrado: ALIADO-999" }
-```
-
-`422 Unprocessable Entity`
-```json
-{ "error": "El campo \"orders\" es requerido y debe ser un array de idSolicitudKey" }
-{ "error": "El array \"orders\" no contiene identificadores válidos" }
 ```
 
 ---
@@ -1374,7 +1300,7 @@ Marca como `sent` una lista de órdenes del aliado. Procesa cada orden de forma 
 
 #### `POST /results`
 
-Registra el resultado de un examen. Al guardar, la orden asociada actualiza su `porcEjecucion` a `100` y pasa a estado `completed`.
+Registra el resultado de un examen. La orden pasa a estado `completed` con `porcEjecucion = 100`.
 
 **Roles:** `admin`, `lab_operator`, `aliado_operator`.
 
@@ -1382,58 +1308,37 @@ Registra el resultado de un examen. Al guardar, la orden asociada actualiza su `
 
 | Campo | Tipo | Requerido | Descripción |
 |---|---|:---:|---|
-| `idSolicitudKey` | string | ✅ | ID de la orden asociada |
+| `idSolicitudKey` | string | ✅ | ID de la orden |
 | `cups` | string | ✅ | Código CUPS del examen |
-| `values` | object | ✅ | Objeto con los valores del resultado. Debe incluir la clave `resultado` |
-| `values.resultado` | string | ✅ | Valor principal del resultado (ej: `"Normal"`, `"Positivo"`) |
-| `attachmentPath` | string\|null | ❌ | Ruta al archivo adjunto (PDF, imagen, etc.) |
+| `values` | object | ✅ | Valores del resultado. Debe incluir clave `resultado` |
+| `values.resultado` | string | ✅ | Valor principal |
+| `attachmentPath` | string\|null | ❌ | Ruta a archivo adjunto |
 | `bacteriologoId` | int | ❌ | ID del bacteriólogo que procesó el examen |
 
-**Ejemplo:**
-
+**Ejemplo — resultado numérico:**
 ```json
 {
   "idSolicitudKey": "SOL-2025-0004",
   "cups": "903820",
   "values": {
     "resultado": "Normal",
-    "leucocitos":  "7.2 10³/µL",
-    "eritrocitos": "4.8 10⁶/µL",
+    "leucocitos": "7.2 10³/µL",
     "hemoglobina": "14.5 g/dL",
-    "hematocrito": "43.2 %",
-    "plaquetas":   "250 10³/µL"
-  },
-  "attachmentPath": null
-}
-```
-
-Para exámenes parametrizados, los valores pueden incluir una clave `reactivo` por parámetro:
-
-```json
-{
-  "idSolicitudKey": "SOL-2025-0007",
-  "cups": "903820",
-  "values": {
-    "hb": { "valor": "14.5", "reactivo": "Sysmex XN-1000" },
-    "wbc": "7.2"
+    "hematocrito": "43.2 %"
   }
 }
 ```
 
-Ejemplo para examen de tipo booleano:
-
+**Ejemplo — resultado booleano:**
 ```json
 {
   "idSolicitudKey": "SOL-2025-0007",
   "cups": "904500",
-  "values": {
-    "pcr_cualitativa": "reactivo"
-  }
+  "values": { "pcr_cualitativa": "reactivo" }
 }
 ```
 
 **Respuesta `201 Created`:**
-
 ```json
 {
   "idSolicitudKey": "SOL-2025-0004",
@@ -1442,26 +1347,13 @@ Ejemplo para examen de tipo booleano:
 }
 ```
 
-`404 Not Found`
-```json
-{ "error": "Orden no encontrada" }
-```
-
-`422 Unprocessable Entity`
-```json
-{ "error": "El resultado debe incluir un valor de resultado principal." }
-{ "error": "Campo requerido faltante: cups" }
-```
-
 ---
 
 #### `GET /orders/{id}/results`
 
-Retorna los resultados estructurados de una orden con los valores tipados y sus flags de interpretación clínica. Para exámenes sin parámetros configurados devuelve el JSON libre original.
+Retorna los resultados estructurados de una orden con flags de interpretación clínica.
 
 **Roles:** todos.
-
-**Path param:** `id` — valor de `idSolicitudKey`.
 
 **Respuesta `200 OK`:**
 
@@ -1478,7 +1370,6 @@ Retorna los resultados estructurados de una orden con los valores tipados y sus 
         "tipoDocumento": "CC",
         "identificacion": "52001234",
         "tarjetaProfesional": "TP-12345",
-        "universidad": "Universidad Nacional de Colombia",
         "firmaPath": "/storage/firmas/firma_bact_1.png"
       },
       "valuesJson": { "hb": "14.5", "wbc": "7.2" },
@@ -1494,21 +1385,6 @@ Retorna los resultados estructurados de una orden con los valores tipados y sus 
           "unidad": "10³/µL",
           "valorMinRef": 4.5,
           "valorMaxRef": 11.0,
-          "etiquetaBooleano": null,
-          "flag": "normal"
-        },
-        {
-          "codigo": "hb",
-          "nombre": "Hemoglobina",
-          "tipoResultado": "numerico",
-          "valorNumerico": 14.5,
-          "valorTexto": null,
-          "valorBooleano": null,
-          "reactivo": "Sysmex XN-1000",
-          "unidad": "g/dL",
-          "valorMinRef": 13.5,
-          "valorMaxRef": 17.5,
-          "etiquetaBooleano": null,
           "flag": "normal"
         }
       ],
@@ -1518,29 +1394,21 @@ Retorna los resultados estructurados de una orden con los valores tipados y sus 
 }
 ```
 
-**Flags posibles:**
-
-| Flag | Descripción |
-|---|---|
-| `normal` | Dentro del rango de referencia |
-| `alto` | Por encima del rango máximo |
-| `bajo` | Por debajo del rango mínimo |
-| `critico` | Valor crítico (>130% del máximo o <70% del mínimo) |
-| `indeterminado` | Sin rango de referencia definido o valor no numérico |
+**Flags posibles:** `normal`, `alto`, `bajo`, `critico`, `indeterminado`, `positivo`, `negativo`, `reactivo`, `no_reactivo`.
 
 ---
 
 #### `POST /orders/{id}/results/attach-pdf`
 
-Adjunta un PDF externo como el informe oficial de la orden. Una vez adjuntado, este PDF se usa en lugar del generado automáticamente al descargar o enviar por correo.
+Adjunta un PDF externo como informe oficial de la orden.
 
 **Roles:** `admin`, `lab_operator`, `aliado_operator`.
 
 **Content-Type:** `multipart/form-data`
 
-| Campo | Tipo | Requerido | Descripción |
-|---|---|:---:|---|
-| `pdf` | file | ✅ | Archivo PDF, máximo 20 MB |
+| Campo | Tipo | Requerido |
+|---|---|:---:|
+| `pdf` | file (PDF, máx 20 MB) | ✅ |
 
 **Respuesta `200 OK`:**
 ```json
@@ -1551,85 +1419,38 @@ Adjunta un PDF externo como el informe oficial de la orden. Una vez adjuntado, e
 }
 ```
 
-`422 Unprocessable Entity`
-```json
-{ "error": "Solo se aceptan archivos PDF" }
-{ "error": "El archivo supera el tamaño máximo de 20 MB" }
-{ "error": "La orden no tiene resultados registrados" }
-```
-
 ---
 
 #### `GET /orders/{id}/results/pdf`
 
-Devuelve el PDF del informe de resultados. Prioridad de resolución:
-
-1. **PDF adjunto manualmente** (`POST /orders/{id}/results/attach-pdf`) — si existe y el archivo está en disco, se devuelve directamente sin regenerar
-2. **PDF generado automáticamente** — se genera a partir de los resultados estructurados
+Descarga el PDF del informe de resultados. Prioriza el PDF adjuntado manualmente; si no existe, genera uno automáticamente.
 
 **Roles:** todos.
-
-**Path param:** `id` — valor de `idSolicitudKey`.
 
 **Query params:**
 
 | Parámetro | Tipo | Descripción |
 |---|---|---|
-| `regenerate` | `1` | Fuerza la regeneración aunque exista un PDF adjunto |
-
-**Ejemplos:**
-```
-GET /orders/SOL-2025-0001/results/pdf
-GET /orders/SOL-2025-0001/results/pdf?regenerate=1
-```
+| `regenerate` | `1` | Fuerza la regeneración aunque exista PDF adjunto |
 
 **Respuesta `200 OK`:**
 - `Content-Type: application/pdf`
 - `Content-Disposition: attachment; filename="resultado_SOL-2025-0001.pdf"`
-- Cuerpo: bytes del PDF
-
-**Contenido del PDF generado automáticamente:**
-- Encabezado con logo, nombre, NIT y dirección del aliado
-- Datos del paciente (nombre, documento, sexo, edad, fecha de nacimiento)
-- Datos de la orden (N° solicitud, fecha, médico, centro de salud)
-- Tabla de resultados por examen con valores, unidades, rangos de referencia y flag con color (verde=normal, amarillo=alto/bajo, rojo=crítico)
-- Pie de página con fecha de generación
-
-`404 Not Found`
-```json
-{ "error": "Orden no encontrada" }
-```
-
-`422 Unprocessable Entity`
-```json
-{ "error": "La orden no tiene resultados registrados" }
-{ "error": "No se encontró el paciente asociado a la orden" }
-```
 
 ---
 
 #### `POST /orders/{id}/results/send-email`
 
-Genera el PDF (si no existe) y lo envía por correo electrónico al paciente o a la dirección indicada.
+Genera el PDF (si no existe) y lo envía por correo al paciente o a la dirección indicada.
 
 **Roles:** `admin`, `lab_operator`, `aliado_operator`.
 
-**Path param:** `id` — valor de `idSolicitudKey`.
-
 **Request body (todo opcional):**
 
-| Campo | Tipo | Requerido | Descripción |
-|---|---|:---:|---|
-| `email` | string | ❌ | Destinatario. Si se omite, usa `patients.email`. Si el paciente no tiene email y no se pasa este campo → error 422 |
-| `mensaje` | string | ❌ | Texto personalizado para el cuerpo del correo |
-
-**Ejemplo:**
-```json
-{
-  "email": "otro@correo.com",
-  "mensaje": "Estimado paciente, adjunto sus resultados de laboratorio."
-}
-```
+| Campo | Tipo | Descripción |
+|---|---|---|
+| `email` | string | Destinatario. Si se omite usa `patients.email` |
+| `mensaje` | string | Texto personalizado para el cuerpo del correo |
 
 **Respuesta `200 OK`:**
 ```json
@@ -1642,43 +1463,25 @@ Genera el PDF (si no existe) y lo envía por correo electrónico al paciente o a
 }
 ```
 
-`404 Not Found`
-```json
-{ "error": "Orden no encontrada" }
-```
-
-`422 Unprocessable Entity`
-```json
-{ "error": "El paciente no tiene email registrado. Proporcione un email en el body." }
-{ "error": "Email inválido: correo_invalido" }
-```
-
 ---
 
 ### Catálogo de exámenes
-
-Permite configurar los tipos de examen y sus parámetros de referencia. Los parámetros se usan para validar y calcular flags automáticamente al registrar resultados.
 
 ---
 
 #### `GET /exam-types`
 
-Lista todos los tipos de examen activos del catálogo.
+Lista todos los tipos de examen.
 
 **Roles:** todos.
 
-**Query params:**
-
-| Parámetro | Tipo | Descripción |
-|---|---|---|
-| `activo` | `0` \| `1` | `0` incluye también los inactivos (default: `1`) |
+**Query params:** `activo` (`0`|`1`, default `1`).
 
 **Respuesta `200 OK`:**
-
 ```json
 [
-  { "cups": "903820", "nombre": "Hemograma Completo", "descripcion": "CBC...", "activo": true },
-  { "cups": "904010", "nombre": "Glucosa en Ayunas",  "descripcion": null,    "activo": true }
+  { "cups": "903820", "nombre": "Hemograma Completo", "descripcion": "CBC", "activo": true },
+  { "cups": "904010", "nombre": "Glucosa en Ayunas",  "descripcion": null,  "activo": true }
 ]
 ```
 
@@ -1686,59 +1489,33 @@ Lista todos los tipos de examen activos del catálogo.
 
 #### `POST /exam-types`
 
-Crea un nuevo tipo de examen.
+Crea un tipo de examen. **Roles:** `admin`.
 
-**Roles:** `admin`.
-
-**Request body:**
-
-| Campo | Tipo | Requerido | Descripción |
-|---|---|:---:|---|
-| `cups` | string | ✅ | Código CUPS único |
-| `nombre` | string | ✅ | Nombre del examen |
-| `descripcion` | string | ❌ | Descripción opcional |
-| `activo` | bool | ❌ | Default `true` |
+| Campo | Tipo | Requerido |
+|---|---|:---:|
+| `cups` | string | ✅ |
+| `nombre` | string | ✅ |
+| `descripcion` | string | ❌ |
+| `activo` | bool | ❌ |
 
 **Respuesta `201 Created`:**
 ```json
 { "message": "Tipo de examen creado" }
 ```
 
-`422 Unprocessable Entity`
-```json
-{ "error": "Ya existe un tipo de examen con CUPS: 903820" }
-```
-
 ---
 
 #### `PUT /exam-types/{cups}`
 
-Actualiza nombre, descripción o estado activo de un tipo de examen.
-
-**Roles:** `admin`.
-
-**Request body:** mismos campos que `POST /exam-types` excepto `cups`.
-
-**Respuesta `200 OK`:**
-```json
-{ "message": "Tipo de examen actualizado" }
-```
-
-`404 Not Found`
-```json
-{ "error": "Tipo de examen no encontrado: 904999" }
-```
+Actualiza un tipo de examen. **Roles:** `admin`.
 
 ---
 
 #### `GET /exam-types/{cups}/parameters`
 
-Lista los parámetros de referencia de un tipo de examen.
-
-**Roles:** todos.
+Lista los parámetros de referencia de un examen. **Roles:** todos.
 
 **Respuesta `200 OK`:**
-
 ```json
 [
   {
@@ -1748,14 +1525,14 @@ Lista los parámetros de referencia de un tipo de examen.
     "unidad": "10³/µL",
     "valorMinRef": 4.5,
     "valorMaxRef": 11.0,
+    "tipoResultado": "numerico",
+    "etiquetaBooleano": null,
     "sexo": "*",
     "edadMin": null,
     "edadMax": null,
     "obligatorio": true,
     "orden": 1,
-    "activo": true,
-    "tipoResultado": "numerico",
-    "etiquetaBooleano": null
+    "activo": true
   }
 ]
 ```
@@ -1764,26 +1541,22 @@ Lista los parámetros de referencia de un tipo de examen.
 
 #### `POST /exam-types/{cups}/parameters`
 
-Agrega un parámetro de referencia al tipo de examen.
-
-**Roles:** `admin`.
-
-**Request body:**
+Agrega un parámetro al tipo de examen. **Roles:** `admin`.
 
 | Campo | Tipo | Requerido | Descripción |
 |---|---|:---:|---|
-| `codigo` | string | ✅ | Clave del parámetro en `values` (ej: `wbc`, `hb`) |
+| `codigo` | string | ✅ | Clave en `values` (ej: `wbc`) |
 | `nombre` | string | ✅ | Nombre legible |
-| `unidad` | string | ❌ | Unidad de medida (ej: `g/dL`, `%`) |
+| `unidad` | string | ❌ | Unidad de medida |
 | `valorMinRef` | float | ❌ | Límite inferior del rango normal |
 | `valorMaxRef` | float | ❌ | Límite superior del rango normal |
-| `sexo` | string | ❌ | `M`, `F` o `*` para ambos (default: `*`) |
-| `edadMin` | int | ❌ | Edad mínima en años (null = sin restricción) |
-| `edadMax` | int | ❌ | Edad máxima en años (null = sin restricción) |
-| `obligatorio` | bool | ❌ | Si es requerido al registrar resultado (default: `false`) |
+| `sexo` | string | ❌ | `M`, `F` o `*` (default: `*`) |
+| `edadMin` | int | ❌ | Edad mínima en años |
+| `edadMax` | int | ❌ | Edad máxima en años |
+| `obligatorio` | bool | ❌ | Default: `false` |
 | `orden` | int | ❌ | Posición en la presentación (default: `0`) |
-| `tipoResultado` | string | ❌ | Tipo de valor: `numerico`, `texto`, `booleano` (default: `numerico`) |
-| `etiquetaBooleano` | string | ❌ | Requerido si `tipoResultado=booleano`. Valores: `normal_alto`, `positivo_negativo`, `reactivo_no_reactivo` |
+| `tipoResultado` | string | ❌ | `numerico`, `texto` o `booleano` (default: `numerico`) |
+| `etiquetaBooleano` | string | ❌ | Requerido si `tipoResultado=booleano`: `normal_alto`, `positivo_negativo`, `reactivo_no_reactivo` |
 
 **Respuesta `201 Created`:**
 ```json
@@ -1794,50 +1567,21 @@ Agrega un parámetro de referencia al tipo de examen.
 
 #### `PUT /exam-types/{cups}/parameters/{id}`
 
-Actualiza un parámetro existente.
-
-**Roles:** `admin`.
-
-**Request body:** mismos campos que `POST /exam-types/{cups}/parameters`.
-
-**Respuesta `200 OK`:**
-```json
-{ "message": "Parámetro actualizado" }
-```
-
-`404 Not Found`
-```json
-{ "error": "Parámetro no encontrado: 999" }
-```
+Actualiza un parámetro. **Roles:** `admin`.
 
 ---
 
 #### `DELETE /exam-types/{cups}/parameters/{id}`
 
-Desactiva un parámetro (soft delete — no se elimina físicamente).
-
-**Roles:** `admin`.
-
-**Respuesta `200 OK`:**
-```json
-{ "message": "Parámetro desactivado" }
-```
-
-`404 Not Found`
-```json
-{ "error": "Parámetro no encontrado: 999" }
-```
+Desactiva un parámetro (soft delete). **Roles:** `admin`.
 
 ---
 
 #### `GET /exam-types/{cups}/parameters/{parameterId}/ranges`
 
-Lista los rangos de referencia por reactivo de un parámetro numérico.
-
-**Roles:** todos.
+Lista los rangos por reactivo de un parámetro. **Roles:** todos.
 
 **Respuesta `200 OK`:**
-
 ```json
 [
   {
@@ -1857,139 +1601,79 @@ Lista los rangos de referencia por reactivo de un parámetro numérico.
 
 #### `POST /exam-types/{cups}/parameters/{parameterId}/ranges`
 
-Agrega un rango de referencia específico para un reactivo. Solo aplica a parámetros de tipo `numerico`.
+Agrega un rango por reactivo (solo para parámetros `numerico`). **Roles:** `admin`.
 
-**Roles:** `admin`.
-
-**Request body:**
-
-| Campo | Tipo | Requerido | Descripción |
-|---|---|:---:|---|
-| `reactivo` | string | ✅ | Nombre del reactivo |
-| `valorMinRef` | float | ❌ | Límite inferior del rango normal |
-| `valorMaxRef` | float | ❌ | Límite superior del rango normal |
-| `sexo` | string | ❌ | `M`, `F` o `*` para ambos (default: `*`) |
-| `edadMin` | int | ❌ | Edad mínima en años (null = sin restricción) |
-| `edadMax` | int | ❌ | Edad máxima en años (null = sin restricción) |
+| Campo | Tipo | Requerido |
+|---|---|:---:|
+| `reactivo` | string | ✅ |
+| `valorMinRef` | float | ❌ |
+| `valorMaxRef` | float | ❌ |
+| `sexo` | string | ❌ |
+| `edadMin` | int | ❌ |
+| `edadMax` | int | ❌ |
 
 **Respuesta `201 Created`:**
 ```json
 { "id": 1, "message": "Rango creado" }
 ```
 
-`422 Unprocessable Entity`
-```json
-{ "error": "Los rangos por reactivo solo aplican a parámetros de tipo numérico." }
-```
-
 ---
 
 #### `PUT /exam-types/{cups}/parameters/{parameterId}/ranges/{rangeId}`
 
-Actualiza un rango existente.
-
-**Roles:** `admin`.
-
-**Request body:** mismos campos que `POST /exam-types/{cups}/parameters/{parameterId}/ranges`.
-
-**Respuesta `200 OK`:**
-```json
-{ "message": "Rango actualizado" }
-```
-
-`404 Not Found`
-```json
-{ "error": "Rango no encontrado: 99" }
-```
+Actualiza un rango. **Roles:** `admin`.
 
 ---
 
 #### `DELETE /exam-types/{cups}/parameters/{parameterId}/ranges/{rangeId}`
 
-Desactiva un rango (soft delete).
-
-**Roles:** `admin`.
-
-**Respuesta `200 OK`:**
-```json
-{ "message": "Rango desactivado" }
-```
+Desactiva un rango. **Roles:** `admin`.
 
 ---
 
 ### Portal de pacientes
 
-Acceso passwordless para pacientes. Usa un flujo OTP de dos pasos que emite un **JWT de paciente** independiente del JWT de staff. El JWT de paciente tiene issuer `api-clinical-lab-patient` y validez de **1 hora**.
-
-> Ninguno de estos endpoints requiere el JWT de staff ni la API Key. Los endpoints de resultados requieren el JWT de paciente en el header `Authorization: Bearer <patient-jwt>`.
+Acceso passwordless para pacientes mediante OTP de dos pasos. El JWT de paciente tiene issuer `api-clinical-lab-patient` y validez de **1 hora**. No requiere JWT de staff.
 
 ---
 
 #### `POST /patient-portal/request-access`
 
-El paciente solicita un código OTP de 6 dígitos. El sistema lo envía al email registrado en la tabla `patients`.
+El paciente solicita un código OTP de 6 dígitos al email registrado.
 
-**Pública** — no requiere token.
+**Pública.**
 
 **Request body:**
 
-| Campo | Tipo | Requerido | Descripción |
-|---|---|:---:|---|
-| `tipoDocumento` | string | ✅ | Tipo de documento (`CC`, `TI`, `PA`, `CE`, etc.) |
-| `identificacion` | string | ✅ | Número de documento |
-
-**Ejemplo:**
-
-```json
-{
-  "tipoDocumento": "CC",
-  "identificacion": "1020304050"
-}
-```
+| Campo | Tipo | Requerido |
+|---|---|:---:|
+| `tipoDocumento` | string | ✅ |
+| `identificacion` | string | ✅ |
 
 **Respuesta `200 OK`** (siempre, para no revelar si el paciente existe):
-
 ```json
-{
-  "message": "Si el documento está registrado, recibirás un código en tu correo."
-}
+{ "message": "Si el documento está registrado, recibirás un código en tu correo." }
 ```
 
-`422 Unprocessable Entity`
-```json
-{ "error": "Los campos tipoDocumento e identificacion son requeridos" }
-```
-
-> El código OTP tiene validez de **15 minutos**. Si se solicita uno nuevo, el anterior queda invalidado automáticamente.
+> El OTP tiene validez de **15 minutos**. Al solicitar uno nuevo, el anterior queda invalidado.
 
 ---
 
 #### `POST /patient-portal/verify`
 
-El paciente envía el código OTP recibido. Si es válido, el sistema retorna un JWT de paciente.
+El paciente valida el OTP y recibe un JWT de paciente.
 
-**Pública** — no requiere token.
+**Pública.**
 
 **Request body:**
 
-| Campo | Tipo | Requerido | Descripción |
-|---|---|:---:|---|
-| `tipoDocumento` | string | ✅ | Tipo de documento |
-| `identificacion` | string | ✅ | Número de documento |
-| `codigo` | string | ✅ | Código OTP de 6 dígitos recibido por email |
-
-**Ejemplo:**
-
-```json
-{
-  "tipoDocumento": "CC",
-  "identificacion": "1020304050",
-  "codigo": "847291"
-}
-```
+| Campo | Tipo | Requerido |
+|---|---|:---:|
+| `tipoDocumento` | string | ✅ |
+| `identificacion` | string | ✅ |
+| `codigo` | string | ✅ |
 
 **Respuesta `200 OK`:**
-
 ```json
 {
   "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
@@ -2001,16 +1685,6 @@ El paciente envía el código OTP recibido. Si es válido, el sistema retorna un
   },
   "expiresIn": 3600
 }
-```
-
-`401 Unauthorized`
-```json
-{ "error": "Código inválido o expirado." }
-```
-
-`422 Unprocessable Entity`
-```json
-{ "error": "Los campos tipoDocumento, identificacion y codigo son requeridos" }
 ```
 
 ### Payload del JWT de paciente
@@ -2031,14 +1705,11 @@ El paciente envía el código OTP recibido. Si es válido, el sistema retorna un
 
 #### `GET /patient-portal/results`
 
-Retorna todas las órdenes en estado `completada` del paciente autenticado.
+Retorna todas las órdenes completadas del paciente autenticado.
 
 **Requiere:** `Authorization: Bearer <patient-jwt>`
 
-**Sin parámetros.**
-
 **Respuesta `200 OK`:**
-
 ```json
 {
   "patient": {
@@ -2050,62 +1721,24 @@ Retorna todas las órdenes en estado `completada` del paciente autenticado.
     {
       "idSolicitudKey": "SOL-2025-0001",
       "fechaDeLaOrden": "2025-04-10 08:30:00",
-      "estadoDeLaOrden": "completada",
+      "estadoDeLaOrden": "completed",
       "centroDeSalud": "Clínica Norte S.A.",
       "medicoQueOrdena": "Dr. Juan Rodríguez"
-    },
-    {
-      "idSolicitudKey": "SOL-2025-0003",
-      "fechaDeLaOrden": "2025-04-22 09:00:00",
-      "estadoDeLaOrden": "completada",
-      "centroDeSalud": "Hospital Central",
-      "medicoQueOrdena": "Dr. Pedro Sánchez"
     }
   ],
-  "total": 2
+  "total": 1
 }
-```
-
-`401 Unauthorized`
-```json
-{ "error": "Token de paciente ausente" }
-{ "error": "Token de paciente inválido o expirado: ..." }
 ```
 
 ---
 
 #### `GET /patient-portal/results/{idSolicitudKey}/pdf`
 
-Descarga el PDF de resultados de una orden específica del paciente autenticado. Verifica que la orden pertenezca al paciente antes de servir el archivo.
+Descarga el PDF de una orden específica del paciente. Verifica que la orden le pertenezca.
 
 **Requiere:** `Authorization: Bearer <patient-jwt>`
 
-**Path param:** `idSolicitudKey` — identificador de la orden (ej: `SOL-2025-0001`).
-
-**Respuesta `200 OK`:**
-- `Content-Type: application/pdf`
-- `Content-Disposition: attachment; filename="resultado_SOL-2025-0001.pdf"`
-- Cuerpo: bytes del PDF
-
-`401 Unauthorized`
-```json
-{ "error": "Token de paciente ausente" }
-```
-
-`403 Forbidden`
-```json
-{ "error": "No tienes acceso a esta orden" }
-```
-
-`404 Not Found`
-```json
-{ "error": "Orden no encontrada" }
-```
-
-`422 Unprocessable Entity`
-```json
-{ "error": "Los resultados de esta orden aún no están disponibles" }
-```
+**Respuesta `200 OK`:** `Content-Type: application/pdf`
 
 ---
 
@@ -2114,64 +1747,78 @@ Descarga el PDF de resultados de una orden específica del paciente autenticado.
 ### Esquema de base de datos
 
 ```
-roles             → id, name
-aliados           → id, nombre, nit, direccion, email, logo_path, activo, created_at
-users             → id, username, email, password_hash, role_id, activo, created_at, updated_at
-user_aliado       → user_id, aliado_id  (N:M)
+roles                 → id, name
+aliados               → id, nombre, nit, direccion, email, logo_path, activo, created_at
+users                 → id, username, email, password_hash, role_id, activo,
+                        failed_login_attempts, locked_until,
+                        password_reset_token, password_reset_expires,
+                        created_at, updated_at
+user_aliado           → user_id, aliado_id  (N:M)
+user_health_center    → user_id, health_center_id  (N:M — asignación de centros a usuarios, rol medico)
 
-bacteriologos     → id (PK), aliado_id (FK), tipo_documento, identificacion (UNIQUE),
-                    nombre, tarjeta_profesional, universidad, firma_path, activo,
-                    created_at, updated_at
+bacteriologos         → id, aliado_id (FK), tipo_documento, identificacion (UNIQUE),
+                        nombre, tarjeta_profesional, universidad, firma_path, activo,
+                        created_at, updated_at
 
-health_centers       → id (PK), nombre, ciudad, direccion, telefono, activo, created_at, updated_at
-aliado_health_center → aliado_id (FK), health_center_id (FK)  (N:M)
+health_centers        → id, nombre, ciudad, direccion, telefono, activo, created_at, updated_at
+aliado_health_center  → aliado_id (FK), health_center_id (FK)  (N:M)
 
-patients          → id (PK), tipo_documento, identificacion (UNIQUE con tipo_doc),
-                    nombre, sexo, fecha_nacimiento, email, telefono, created_at, updated_at
+patients              → id, tipo_documento, identificacion (UNIQUE con tipo_doc),
+                        nombre, sexo, fecha_nacimiento, email, telefono, created_at, updated_at
 
-lab_orders        → id_solicitud_key (PK), id_admision, id_atencion, tipo_documento,
-                    identificacion, nombre_paciente, sexo, fecha_nacimiento,
-                    centro_salud, fecha_orden, medico_ordena, numero_autorizacion,
-                    id_aliado, fecha_envio, porc_ejecucion, estado_orden,
-                    patient_id (FK → patients), health_center_id (FK → health_centers),
-                    medico_id (FK → medicos, nullable),
-                    created_at, updated_at
+medicos               → id, tipo_documento, identificacion (UNIQUE con tipo_doc),
+                        nombre, especialidad, registro_medico,
+                        user_id (FK → users, UNIQUE, nullable),
+                        activo, created_at, updated_at
 
-lab_order_details → id (PK), id_solicitud_key (FK), id_admision, cups,
-                    nombre_laboratorio, fecha_toma_muestra, metodo, reactivo,
-                    invima, estado_resultado, fecha_resultado,
-                    tipo_id_bacteriologo, id_bacteriologo, created_at
+lab_orders            → id_solicitud_key (PK), id_admision, id_atencion, tipo_documento,
+                        identificacion, nombre_paciente, sexo, fecha_nacimiento,
+                        centro_salud, fecha_orden, medico_ordena, numero_autorizacion,
+                        id_aliado, fecha_envio, porc_ejecucion, estado_orden,
+                        patient_id (FK → patients),
+                        health_center_id (FK → health_centers),
+                        medico_id (FK → medicos, nullable),
+                        created_at, updated_at
 
-lab_results       → id (PK), id_solicitud_key (FK), cups, values_json,
-                    attachment_path, bacteriologo_id (FK → bacteriologos),
-                    received_at, created_at
+lab_order_details     → id, id_solicitud_key (FK), id_admision, cups,
+                        nombre_laboratorio, fecha_toma_muestra, metodo, reactivo,
+                        invima, estado_resultado, fecha_resultado,
+                        tipo_id_bacteriologo, id_bacteriologo, created_at
 
-medicos           → id (PK), tipo_documento, identificacion (UNIQUE con tipo_doc),
-                    nombre, especialidad, registro_medico,
-                    user_id (FK → users, UNIQUE, nullable),
-                    activo, created_at, updated_at
+lab_results           → id, id_solicitud_key (FK), cups, values_json,
+                        attachment_path, bacteriologo_id (FK → bacteriologos),
+                        received_at, created_at
 
-exam_types        → cups (PK), nombre, descripcion, activo, created_at, updated_at
+exam_types            → cups (PK), nombre, descripcion, activo, created_at, updated_at
 
-exam_parameters   → id (PK), cups (FK), codigo, nombre, unidad,
-                    valor_min_ref, valor_max_ref, tipo_resultado, etiqueta_booleano,
-                    sexo, edad_min, edad_max, obligatorio, orden, activo,
-                    created_at, updated_at
+exam_parameters       → id, cups (FK), codigo, nombre, unidad,
+                        valor_min_ref, valor_max_ref,
+                        tipo_resultado (numerico|texto|booleano),
+                        etiqueta_booleano, comentario,
+                        sexo, edad_min, edad_max, obligatorio, orden, activo,
+                        created_at, updated_at
 
-exam_parameter_ranges → id (PK), parameter_id (FK), reactivo, valor_min_ref, valor_max_ref,
+exam_parameter_ranges → id, parameter_id (FK), reactivo, valor_min_ref, valor_max_ref,
                         sexo, edad_min, edad_max, activo, created_at, updated_at
 
-lab_result_values → id (PK), lab_result_id (FK), parameter_id (FK),
-                    valor_numerico, valor_texto, valor_booleano, reactivo, flag, created_at
+lab_result_values     → id, lab_result_id (FK), parameter_id (FK),
+                        valor_numerico, valor_texto, valor_booleano, reactivo, flag,
+                        created_at
 
-result_email_log  → id (PK), id_solicitud_key (FK), email_destino,
-                    estado (enviado|error), error_mensaje, enviado_at
+result_email_log      → id, id_solicitud_key (FK), email_destino,
+                        estado (enviado|error), error_mensaje, enviado_at
 
-patient_access_tokens → id (PK), patient_id (FK → patients), codigo_hash,
+patient_access_tokens → id, patient_id (FK → patients), codigo_hash,
                         expires_at, usado, created_at
+
+antibiogramas         → id, lab_result_id (FK), bacteria_aislada, gram,
+                        tiempo_incubacion, gram_orina, observaciones, created_at, updated_at
+
+antibiograma_items    → id, antibiograma_id (FK), antibiotico, cim,
+                        sensibilidad (S|I|R), metodo, created_at
 ```
 
-Scripts DDL: `docs/schema.sql`, `docs/schema_auth.sql`, `database/schema_exam_catalog.sql`, `database/schema_health_centers.sql`, `database/schema_param_ranges.sql`, `database/schema_aliado_profile.sql`, `database/schema_pdf_email.sql`, `database/schema_bacteriologos.sql`.
+Script DDL consolidado: `database/dbprod.sql`
 
 ### Ciclo de vida de una orden
 
@@ -2188,52 +1835,59 @@ Scripts DDL: `docs/schema.sql`, `docs/schema_auth.sql`, `database/schema_exam_ca
 
 ```
 1.  POST /auth/login                                    → obtener JWT
-2.  POST /auth/register                                 → (admin) crear usuarios del sistema
-3.  PUT  /aliados/{id}                                  → (admin) completar perfil del aliado (NIT, email, dirección)
-4.  POST /aliados/{id}/logo                             → (admin) subir logotipo del aliado
-5.  POST /aliados/{id}/bacteriologos                    → (admin/lab) registrar bacteriólogos del aliado
-6.  POST /bacteriologos/{id}/firma                      → (admin/lab) subir firma digital del bacteriólogo
-7.  POST /medicos                                       → (admin/lab) registrar médico en el catálogo
-8.  POST /health-centers                                → (admin) crear centros de salud
-9.  POST /health-centers/{id}/aliados/{aliadoId}        → (admin) asociar aliado a centro
-10. POST /orders                                        → crear orden con medicoId o tipoDocumentoMedico+identificacionMedico
-11. GET  /patients?q=<nombre>                           → buscar paciente creado automáticamente
-12. GET  /orders?estado=pending                         → listar órdenes pendientes (general)
-13. GET  /aliados/{id}/orders/pending                   → listar pendientes de un aliado específico
-14. GET  /orders/{id}                                   → ver detalle de una orden (incluye medicoId)
-15. POST /orders/{id}/send                              → enviar una orden al laboratorio externo
-16. POST /aliados/{id}/orders/mark-sent                 → marcar múltiples órdenes como enviadas
-17. GET  /orders?estado=sent                            → verificar órdenes enviadas
-18. POST /results                                       → registrar resultado con bacteriologoId
-19. GET  /orders/{id}/results                           → ver resultados estructurados con flags y bacteriólogo
+2.  GET  /auth/password-policy                          → consultar requisitos de contraseña
+3.  POST /auth/register                                 → (admin) crear usuarios del sistema
+                                                          • role: medico + health_centers: [1,3]
+                                                          • role: aliado_operator + aliados: ["ALIADO-001"]
+4.  PUT  /aliados/{id}                                  → (admin) completar perfil del aliado
+5.  POST /aliados/{id}/logo                             → (admin) subir logotipo del aliado
+6.  POST /aliados/{id}/bacteriologos                    → (admin/lab) registrar bacteriólogos
+7.  POST /bacteriologos/{id}/firma                      → (admin/lab) subir firma digital
+8.  POST /medicos                                       → (admin/lab) registrar médico (opcional: userId)
+9.  POST /health-centers                                → (admin) crear centros de salud
+10. POST /health-centers/{id}/aliados/{aliadoId}        → (admin) asociar aliado a centro
+11. POST /orders                                        → crear orden (healthCenterId, medicoId opcionales)
+12. GET  /patients?q=<nombre>                           → buscar paciente creado automáticamente
+13. GET  /orders?estado=pending                         → listar órdenes pendientes
+        [medico] → solo ve órdenes de sus health_centers
+        [aliado_operator] → solo ve órdenes de sus aliados
+14. GET  /aliados/{id}/orders/pending                   → pendientes de un aliado específico
+15. GET  /orders/{id}                                   → ver detalle (incluye medicoId)
+16. POST /orders/{id}/send                              → enviar al laboratorio externo
+17. POST /aliados/{id}/orders/mark-sent                 → marcar múltiples como enviadas
+18. POST /results                                       → registrar resultado (bacteriologoId opcional)
+19. GET  /orders/{id}/results                           → resultados estructurados con flags
 20. GET  /orders/{id}/results/pdf                       → descargar PDF con firma del bacteriólogo
-21. POST /orders/{id}/results/send-email                → enviar informe PDF por correo al paciente
+21. POST /orders/{id}/results/send-email                → enviar informe PDF por correo
 22. GET  /orders?estado=completed                       → confirmar órdenes completadas
 
 --- Flujo portal de pacientes (passwordless) ---
-23. POST /patient-portal/request-access                 → paciente solicita código OTP (enviado al email)
-24. POST /patient-portal/verify                         → paciente verifica OTP → recibe JWT de paciente (1 h)
+23. POST /patient-portal/request-access                 → solicitar OTP
+24. POST /patient-portal/verify                         → verificar OTP → JWT de paciente
 25. GET  /patient-portal/results                        → paciente consulta sus órdenes completadas
-26. GET  /patient-portal/results/{idSolicitudKey}/pdf   → paciente descarga PDF de una orden
+26. GET  /patient-portal/results/{idSolicitudKey}/pdf   → paciente descarga PDF
+
+--- Recuperación de contraseña ---
+27. POST /auth/password-reset/request                   → solicitar enlace de recuperación
+28. POST /auth/password-reset/confirm                   → confirmar nueva contraseña con token
 ```
 
 ---
 
 ## Configuración de correo
 
-Para habilitar el envío de resultados por email (`POST /orders/{id}/results/send-email`) se requieren las siguientes variables de entorno:
+Para habilitar el envío de resultados por email se requieren estas variables de entorno:
 
 | Variable | Descripción | Ejemplo |
 |---|---|---|
 | `MAIL_HOST` | Servidor SMTP | `smtp.gmail.com` |
-| `MAIL_PORT` | Puerto SMTP (`587` = TLS, `465` = SSL) | `587` |
+| `MAIL_PORT` | Puerto SMTP | `587` |
 | `MAIL_USERNAME` | Usuario SMTP (correo remitente) | `lab@clinica.com` |
 | `MAIL_PASSWORD` | Contraseña o App Password | `xxxx xxxx xxxx xxxx` |
 | `MAIL_FROM_NAME` | Nombre del remitente | `Laboratorio Clínico` |
 
-Agregar al `docker-compose.yml` en la sección `environment` del servicio `app`:
-
 ```yaml
+# docker-compose.yml → services.app.environment
 MAIL_HOST: smtp.gmail.com
 MAIL_PORT: 587
 MAIL_USERNAME: lab@clinica.com
@@ -2241,13 +1895,11 @@ MAIL_PASSWORD: tu_app_password
 MAIL_FROM_NAME: "Laboratorio Clínico"
 ```
 
-> Para Gmail se recomienda usar una **App Password** (contraseña de aplicación) en lugar de la contraseña de la cuenta. Se genera en: Cuenta Google → Seguridad → Verificación en dos pasos → Contraseñas de aplicaciones.
+> Para Gmail usa una **App Password** (Cuenta Google → Seguridad → Verificación en dos pasos → Contraseñas de aplicaciones).
 
 ---
 
 ## Datos de prueba
-
-El script `database/seed.php` carga usuarios, aliados y órdenes de prueba.
 
 ```bash
 docker compose exec app php /app/database/seed.php
@@ -2255,13 +1907,19 @@ docker compose exec app php /app/database/seed.php
 
 ### Usuarios
 
-| Usuario | Contraseña | Rol | Aliados asignados |
+| Usuario | Contraseña | Rol | Asignación |
 |---|---|---|---|
-| `admin` | `admin123` | `admin` | — (ve todo) |
-| `lab_op` | `lab_op123` | `lab_operator` | — (ve todo) |
-| `aliado_norte` | `aliado_norte123` | `aliado_operator` | ALIADO-001 |
-| `aliado_sur` | `aliado_sur123` | `aliado_operator` | ALIADO-002 |
-| `viewer` | `viewer123` | `viewer` | — |
+| `admin` | `Admin1234!` | `admin` | — (ve todo) |
+| `lab_op` | `Lab_op123!` | `lab_operator` | — (ve todo) |
+| `aliado_norte` | `Aliado_norte1!` | `aliado_operator` | ALIADO-001 |
+| `aliado_sur` | `Aliado_sur1!` | `aliado_operator` | ALIADO-002 |
+| `viewer` | `Viewer123!` | `viewer` | — |
+
+> Para crear un usuario médico de prueba:
+> ```json
+> POST /auth/register
+> { "username": "dr_demo", "email": "dr@demo.com", "password": "Medico2024!", "role": "medico", "health_centers": [1] }
+> ```
 
 ### Aliados
 
@@ -2272,20 +1930,20 @@ docker compose exec app php /app/database/seed.php
 
 ### Órdenes de prueba
 
-| ID | Estado | Resultados | Aliado | Visible por |
-|---|---|:---:|---|---|
-| `SOL-2025-0001` | `completed` | ✅ Hemograma + Glucosa | ALIADO-001 | admin, aliado_norte |
-| `SOL-2025-0003` | `completed` | ✅ Creatinina + Urea | ALIADO-001 | admin, aliado_norte |
-| `SOL-2025-0006` | `completed` | ✅ TSH + T4 Libre | ALIADO-001 | admin, aliado_norte |
-| `SOL-2025-0004` | `sent` | ❌ | ALIADO-001 | admin, aliado_norte |
-| `SOL-2025-0007` | `pending` | ❌ | ALIADO-001 | admin, aliado_norte |
-| `SOL-2025-0002` | `completed` | ✅ Perfil Lipídico | ALIADO-002 | admin, aliado_sur |
-| `SOL-2025-0008` | `completed` | ✅ Parcial de Orina | ALIADO-002 | admin, aliado_sur |
-| `SOL-2025-0009` | `completed` | ✅ HbA1c + Glucosa | ALIADO-002 | admin, aliado_sur |
-| `SOL-2025-0010` | `completed` | ✅ PCR + Perfil Lipídico | ALIADO-002 | admin, aliado_sur |
-| `SOL-2025-0005` | `sent` | ❌ | ALIADO-002 | admin, aliado_sur |
-| `SOL-2025-0011` | `pending` | ❌ | ALIADO-002 | admin, aliado_sur |
-| `SOL-2025-0012` | `pending` | ❌ | ALIADO-002 | admin, aliado_sur |
+| ID | Estado | Resultados | Aliado |
+|---|---|:---:|---|
+| `SOL-2025-0001` | `completed` | ✅ Hemograma + Glucosa | ALIADO-001 |
+| `SOL-2025-0003` | `completed` | ✅ Creatinina + Urea | ALIADO-001 |
+| `SOL-2025-0006` | `completed` | ✅ TSH + T4 Libre | ALIADO-001 |
+| `SOL-2025-0004` | `sent` | ❌ | ALIADO-001 |
+| `SOL-2025-0007` | `pending` | ❌ | ALIADO-001 |
+| `SOL-2025-0002` | `completed` | ✅ Perfil Lipídico | ALIADO-002 |
+| `SOL-2025-0008` | `completed` | ✅ Parcial de Orina | ALIADO-002 |
+| `SOL-2025-0009` | `completed` | ✅ HbA1c + Glucosa | ALIADO-002 |
+| `SOL-2025-0010` | `completed` | ✅ PCR + Perfil Lipídico | ALIADO-002 |
+| `SOL-2025-0005` | `sent` | ❌ | ALIADO-002 |
+| `SOL-2025-0011` | `pending` | ❌ | ALIADO-002 |
+| `SOL-2025-0012` | `pending` | ❌ | ALIADO-002 |
 
 ---
 
@@ -2295,44 +1953,43 @@ docker compose exec app php /app/database/seed.php
 |---|---|---|
 | Token ausente | `401` | `Token de autorización ausente` |
 | Token expirado o inválido | `401` | `Token inválido o expirado: ...` |
+| Cuenta bloqueada | `401` | `Cuenta bloqueada por múltiples intentos fallidos...` |
 | Rol insuficiente | `403` | `No tienes permisos para esta acción` |
 | Credenciales incorrectas | `401` | `Credenciales inválidas` |
-| Campo requerido faltante | `422` | `Campo requerido faltante: <campo>` |
+| Campo requerido faltante | `422` | `Campo requerido: <campo>` |
 | Username duplicado | `422` | `El username ya está en uso` |
 | Email duplicado | `422` | `El email ya está en uso` |
 | Rol inválido al registrar | `422` | `Rol inválido: <rol>` |
+| Aliado no encontrado | `404` | `Aliado no encontrado: <id>` |
 | Centro de salud no encontrado | `404` | `Centro de salud no encontrado: <id>` |
 | Paciente no encontrado | `404` | `Paciente no encontrado: <id>` |
-| Aliado no encontrado | `404` | `Aliado no encontrado: <id>` |
 | Orden no encontrada | `404` | `Orden no encontrada` |
 | Estado de filtro inválido | `422` | `Estado inválido. Valores permitidos: pending, sent, completed` |
 | Formato de fecha inválido | `422` | `fecha_desde debe tener formato YYYY-MM-DD` |
 | Sin campo `resultado` | `422` | `El resultado debe incluir un valor de resultado principal.` |
 | Parámetros obligatorios faltantes | `422` | `Faltan parámetros obligatorios: hb (Hemoglobina), ...` |
-| Array `orders` ausente o inválido | `422` | `El campo "orders" es requerido y debe ser un array de idSolicitudKey` |
-| Array `orders` vacío | `422` | `El array "orders" no contiene identificadores válidos` |
+| Array `orders` ausente | `422` | `El campo "orders" es requerido y debe ser un array de idSolicitudKey` |
 | Tipo de examen duplicado | `422` | `Ya existe un tipo de examen con CUPS: <cups>` |
 | Tipo de examen no encontrado | `404` | `Tipo de examen no encontrado: <cups>` |
 | Parámetro no encontrado | `404` | `Parámetro no encontrado: <id>` |
 | Rango no encontrado | `404` | `Rango no encontrado: <id>` |
-| Sexo inválido en parámetro | `422` | `Valor de sexo inválido: 'X'. Use 'M', 'F' o '*'.` |
-| Tipo resultado inválido | `422` | `Tipo de resultado inválido: 'x'. Use: numerico, texto, booleano` |
-| Etiqueta booleano requerida | `422` | `Para tipo 'booleano' se requiere etiquetaBooleano...` |
-| Rango solo para numérico | `422` | `Los rangos por reactivo solo aplican a parámetros de tipo numérico.` |
 | Bacteriólogo no encontrado | `404` | `Bacteriólogo no encontrado: <id>` |
 | Bacteriólogo duplicado | `422` | `Ya existe un bacteriólogo con ese documento` |
-| Logo formato inválido | `422` | `Formato no permitido. Use PNG o JPG` |
-| Logo tamaño excedido | `422` | `El archivo supera el tamaño máximo de 2 MB` |
+| Logo / firma formato inválido | `422` | `Formato no permitido. Use PNG o JPG` |
+| Logo / firma tamaño excedido | `422` | `El archivo supera el tamaño máximo de 2 MB` |
 | Sin resultados para PDF | `422` | `La orden no tiene resultados registrados` |
 | Paciente sin email | `422` | `El paciente no tiene email registrado. Proporcione un email en el body.` |
 | Email inválido | `422` | `Email inválido: <email>` |
 | Error envío correo | `500` | `Error al enviar el correo: <detalle>` |
 | Lab externo no responde | `502` | `Fallo al enviar orden: <detalle>` |
+| Token reset inválido | `422` | `Token inválido o expirado` |
 | OTP inválido o expirado | `401` | `Código inválido o expirado.` |
-| Médico no encontrado | `422` | `Médico no encontrado o inactivo: <id>` |
-| Médico no encontrado por doc | `422` | `Médico no encontrado con documento CC <id>` |
-| Médico duplicado | `422` | `Ya existe un médico con ese documento` |
-| Usuario ya vinculado a médico | `422` | `Ese usuario ya tiene un médico asociado` || Token de paciente ausente | `401` | `Token de paciente ausente` |
+| Token de paciente ausente | `401` | `Token de paciente ausente` |
 | Token de paciente inválido | `401` | `Token de paciente inválido o expirado: ...` |
 | Orden no pertenece al paciente | `403` | `No tienes acceso a esta orden` |
 | Orden no completada (portal) | `422` | `Los resultados de esta orden aún no están disponibles` |
+| Médico no encontrado | `422` | `Médico no encontrado o inactivo: <id>` |
+| Médico duplicado | `422` | `Ya existe un médico con ese documento` |
+| Usuario ya vinculado a médico | `422` | `Ese usuario ya tiene un médico asociado` |
+| Rango solo para numérico | `422` | `Los rangos por reactivo solo aplican a parámetros de tipo numérico.` |
+| Tipo resultado inválido | `422` | `Tipo de resultado inválido: 'x'. Use: numerico, texto, booleano` |

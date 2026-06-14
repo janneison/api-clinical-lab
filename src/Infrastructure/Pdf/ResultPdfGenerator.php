@@ -50,15 +50,28 @@ class ResultPdfGenerator
         return __DIR__ . '/../../../../' . ltrim($relativePath, '/');
     }
 
+    /** Ruta del logo institucional del hospital (relativa a la raíz del proyecto). */
+    private const HOSPITAL_LOGO_PATH = 'storage/logos/hospital_materno_infantil.png';
+
     private function buildHtml(LabOrder $order, Patient $patient, ?Aliado $aliado, array $resultados): string
     {
-        $logoHtml = '';
+        // ── Logo institucional (izquierda) ────────────────────────────────────
+        $hospitalLogoHtml = '';
+        $hospitalLogoFull = __DIR__ . '/../../../../' . self::HOSPITAL_LOGO_PATH;
+        if (file_exists($hospitalLogoFull)) {
+            $data             = base64_encode(file_get_contents($hospitalLogoFull));
+            $mime             = str_ends_with($hospitalLogoFull, '.png') ? 'image/png' : 'image/jpeg';
+            $hospitalLogoHtml = "<img src=\"data:{$mime};base64,{$data}\" style=\"max-height:70px;\">";
+        }
+
+        // ── Logo del aliado (derecha) ─────────────────────────────────────────
+        $aliadoLogoHtml = '';
         if ($aliado?->getLogoPath()) {
             $logoFullPath = __DIR__ . '/../../../../' . ltrim($aliado->getLogoPath(), '/');
             if (file_exists($logoFullPath)) {
-                $logoData = base64_encode(file_get_contents($logoFullPath));
-                $mime     = str_ends_with($logoFullPath, '.png') ? 'image/png' : 'image/jpeg';
-                $logoHtml = "<img src=\"data:{$mime};base64,{$logoData}\" style=\"max-height:70px;\">";
+                $logoData       = base64_encode(file_get_contents($logoFullPath));
+                $mime           = str_ends_with($logoFullPath, '.png') ? 'image/png' : 'image/jpeg';
+                $aliadoLogoHtml = "<img src=\"data:{$mime};base64,{$logoData}\" style=\"max-height:70px;\">";
             }
         }
 
@@ -102,12 +115,13 @@ table.results td{padding:3px 6px;border:1px solid #d5d8dc}
 .footer{border-top:1px solid #ccc;margin-top:20px;padding-top:6px;font-size:9px;color:#888;text-align:center}
 </style></head><body>
 <table width='100%'><tr>
-<td width='100'>{$logoHtml}</td>
-<td style='padding-left:14px'>
+<td width='120' style='vertical-align:middle'>{$hospitalLogoHtml}</td>
+<td style='padding-left:14px;vertical-align:middle'>
 <h1>{$aliadoNombre}</h1>
 <div class='subtitle'>NIT: {$aliadoNit} | {$aliadoDir} | {$aliadoEmail}</div>
 <div class='title-report'>INFORME DE RESULTADOS DE LABORATORIO</div>
 </td>
+<td width='120' style='text-align:right;vertical-align:middle'>{$aliadoLogoHtml}</td>
 </tr></table>
 <hr class='top'>
 <div class='section-title'>DATOS DEL PACIENTE</div>
@@ -168,8 +182,12 @@ table.results td{padding:3px 6px;border:1px solid #d5d8dc}
                     };
                     $nom   = htmlspecialchars($v['nombre'] ?? $v['codigo'] ?? '');
                     $uni   = htmlspecialchars($v['unidad'] ?? '');
+                    $com   = !empty($v['comentario'])
+                           ? '<br><span style="font-size:8px;color:#555;font-style:italic">'
+                             . htmlspecialchars($v['comentario']) . '</span>'
+                           : '';
                     $html .= "<tr>
-                        <td>{$nom}</td>
+                        <td>{$nom}{$com}</td>
                         <td><strong>" . htmlspecialchars((string) $valor) . "</strong></td>
                         <td>{$uni}</td>
                         <td>{$ref}</td>
@@ -200,6 +218,54 @@ table.results td{padding:3px 6px;border:1px solid #d5d8dc}
             $html .= "</tbody></table>
             <p style='font-size:9px;color:#888;text-align:right;margin-bottom:8px'>Recibido: "
                    . htmlspecialchars($res['receivedAt'] ?? '') . "</p>";
+
+            // Antibiogramas
+            if (!empty($res['antibiogramas'])) {
+                foreach ($res['antibiogramas'] as $ab) {
+                    $bacteria = htmlspecialchars($ab['bacteriaAislada'] ?? '');
+                    $gram     = $ab['gram'] ? ' | Gram: ' . htmlspecialchars(ucfirst($ab['gram'])) : '';
+                    $incub    = $ab['tiempoIncubacion'] ? ' | Incubación: ' . htmlspecialchars($ab['tiempoIncubacion']) : '';
+                    $gramOrina = !empty($ab['gramOrina'])
+                        ? '<p style="font-size:10px;margin:4px 0"><strong>Gram directo:</strong> ' . htmlspecialchars($ab['gramOrina']) . '</p>'
+                        : '';
+                    $obs = !empty($ab['observaciones'])
+                        ? '<p style="font-size:10px;margin:4px 0"><strong>Observaciones:</strong> ' . htmlspecialchars($ab['observaciones']) . '</p>'
+                        : '';
+
+                    $html .= "<div style='margin:8px 0;padding:8px;background:#f9f9f9;border-left:3px solid #1a5276'>"
+                           . "<p style='font-size:11px;font-weight:bold;margin:0 0 4px 0'>Bacteria aislada: {$bacteria}{$gram}{$incub}</p>"
+                           . $gramOrina . $obs;
+
+                    if (!empty($ab['items'])) {
+                        $html .= "<table class='results' style='margin-top:6px'><thead><tr>"
+                               . "<th>Antibiótico</th><th>CIM</th><th>Sensibilidad</th><th>Método</th>"
+                               . "</tr></thead><tbody>";
+                        foreach ($ab['items'] as $item) {
+                            $sens  = $item['sensibilidad'] ?? '—';
+                            $color = match($sens) {
+                                'S'     => '#d5f5e3',
+                                'I'     => '#fef9e7',
+                                'R'     => '#fadbd8',
+                                default => '#f4f4f4',
+                            };
+                            $label = match($sens) {
+                                'S'     => 'Sensible',
+                                'I'     => 'Intermedio',
+                                'R'     => 'Resistente',
+                                default => '—',
+                            };
+                            $html .= "<tr>"
+                                   . "<td>" . htmlspecialchars($item['antibiotico'] ?? '') . "</td>"
+                                   . "<td>" . htmlspecialchars($item['cim'] ?? '—') . "</td>"
+                                   . "<td style='background:{$color};font-weight:bold'>{$label}</td>"
+                                   . "<td style='font-size:9px'>" . htmlspecialchars($item['metodo'] ?? '—') . "</td>"
+                                   . "</tr>";
+                        }
+                        $html .= "</tbody></table>";
+                    }
+                    $html .= "</div>";
+                }
+            }
         }
         return $html;
     }

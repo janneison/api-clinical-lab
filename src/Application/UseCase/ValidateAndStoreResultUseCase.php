@@ -3,9 +3,12 @@
 namespace ClinicalLab\Application\UseCase;
 
 use ClinicalLab\Application\Dto\LabResultDto;
+use ClinicalLab\Domain\Entity\Antibiograma;
+use ClinicalLab\Domain\Entity\AntibiogramaItem;
 use ClinicalLab\Domain\Entity\ExamParameter;
 use ClinicalLab\Domain\Entity\LabResult;
 use ClinicalLab\Domain\Entity\LabResultValue;
+use ClinicalLab\Domain\Repository\AntibiogramaRepositoryInterface;
 use ClinicalLab\Domain\Repository\ExamParameterRangeRepositoryInterface;
 use ClinicalLab\Domain\Repository\ExamParameterRepositoryInterface;
 use ClinicalLab\Domain\Repository\LabOrderRepositoryInterface;
@@ -22,6 +25,7 @@ class ValidateAndStoreResultUseCase
         private readonly ExamParameterRepositoryInterface      $parameterRepository,
         private readonly LabResultValueRepositoryInterface     $resultValueRepository,
         private readonly ExamParameterRangeRepositoryInterface $rangeRepository,
+        private readonly AntibiogramaRepositoryInterface       $antibiogramaRepository,
     ) {
     }
 
@@ -59,7 +63,33 @@ class ValidateAndStoreResultUseCase
             $this->saveStructuredValues($labResultId, $dto->values, $parameters);
         }
 
-        // 5. Marcar la orden como completada
+        // 5. Guardar antibiogramas si vienen en el request
+        if (!empty($dto->antibiogramas)) {
+            foreach ($dto->antibiogramas as $abDto) {
+                $ab = new Antibiograma(
+                    0,
+                    $labResultId,
+                    $abDto->bacteriaAislada,
+                    $abDto->gram,
+                    $abDto->tiempoIncubacion,
+                    $abDto->gramOrina,
+                    $abDto->observaciones,
+                );
+                foreach ($abDto->items as $itemDto) {
+                    $ab->addItem(new AntibiogramaItem(
+                        0,
+                        0, // se asigna en el repositorio
+                        $itemDto->antibiotico,
+                        $itemDto->cim,
+                        $itemDto->sensibilidad,
+                        $itemDto->metodo,
+                    ));
+                }
+                $this->antibiogramaRepository->save($ab);
+            }
+        }
+
+        // 6. Marcar la orden como completada
         $order->updateProgress(100);
         $this->orderRepository->update($order);
     }

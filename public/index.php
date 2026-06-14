@@ -10,6 +10,7 @@ use ClinicalLab\Application\UseCase\GenerateResultPdfUseCase;
 use ClinicalLab\Application\UseCase\GetPendingOrdersByAliadoUseCase;
 use ClinicalLab\Application\UseCase\HealthCenterUseCase;
 use ClinicalLab\Application\UseCase\LoginUseCase;
+use ClinicalLab\Application\UseCase\PasswordResetUseCase;
 use ClinicalLab\Application\UseCase\PatientPortalUseCase;
 use ClinicalLab\Application\UseCase\PatientUseCase;
 use ClinicalLab\Application\UseCase\RegisterUserUseCase;
@@ -17,6 +18,7 @@ use ClinicalLab\Application\UseCase\SendLabOrderUseCase;
 use ClinicalLab\Application\UseCase\SendResultEmailUseCase;
 use ClinicalLab\Application\UseCase\ValidateAndStoreResultUseCase;
 use ClinicalLab\Domain\Entity\Role;
+use ClinicalLab\Domain\Service\PasswordPolicyService;
 use ClinicalLab\Infrastructure\Auth\JwtTokenService;
 use ClinicalLab\Infrastructure\Http\Controller\AliadoController;
 use ClinicalLab\Infrastructure\Http\Controller\AliadoOrderController;
@@ -51,6 +53,7 @@ use ClinicalLab\Infrastructure\Persistence\MySqlPatientAccessTokenRepository;
 use ClinicalLab\Infrastructure\Persistence\MySqlPatientRepository;
 use ClinicalLab\Infrastructure\Persistence\MySqlUserRepository;
 use ClinicalLab\Infrastructure\Persistence\MySqlMedicoRepository;
+use ClinicalLab\Infrastructure\Persistence\MySqlAntibiogramaRepository;
 use ClinicalLab\Infrastructure\Persistence\PdoConnectionFactory;
 use Slim\Factory\AppFactory;
 
@@ -60,10 +63,23 @@ require __DIR__ . '/../vendor/autoload.php';
 $envFile = __DIR__ . '/../config/.env';
 if (file_exists($envFile)) {
     foreach (file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {
-        if (!str_starts_with(trim($line), '#') && str_contains($line, '=')) {
-            [$key, $value] = explode('=', $line, 2);
-            $_ENV[trim($key)] = trim($value);
-            putenv(trim($key) . '=' . trim($value));
+        $line = trim($line);
+        if ($line === '' || str_starts_with($line, '#') || !str_contains($line, '=')) {
+            continue;
+        }
+        [$key, $value] = explode('=', $line, 2);
+        $key   = trim($key);
+        $value = trim($value);
+        // Quitar comillas envolventes si las hay
+        if (strlen($value) >= 2 &&
+            (($value[0] === '"' && $value[-1] === '"') ||
+             ($value[0] === "'" && $value[-1] === "'"))) {
+            $value = substr($value, 1, -1);
+        }
+        // Solo setear si NO está ya definida en el entorno del sistema (Docker la inyecta)
+        if (getenv($key) === false) {
+            $_ENV[$key] = $value;
+            putenv("{$key}={$value}");
         }
     }
 }
@@ -84,6 +100,7 @@ $healthCenterRepository = new MySqlHealthCenterRepository($pdo);
 $patientRepository      = new MySqlPatientRepository($pdo);
 $bacteriologoRepository = new MySqlBacteriologoRepository($pdo);
 $medicoRepository       = new MySqlMedicoRepository($pdo);
+$antibiogramaRepository = new MySqlAntibiogramaRepository($pdo);
 
 $tokenService = new JwtTokenService(getenv('JWT_SECRET') ?: getenv('EXTERNAL_LAB_JWT_SECRET'));
 $externalClient = new ExternalLabApiClient(
@@ -93,9 +110,40 @@ $externalClient = new ExternalLabApiClient(
 );
 
 // ── Controladores ─────────────────────────────────────────────────────────────
+$passwordPolicy = new PasswordPolicyService();
+
+// ── PDF y Email ───────────────────────────────────────────────────────────────
+$pdfGenerator = new ResultPdfGenerator();
+
+$generatePdfUseCase = new GenerateResultPdfUseCase(
+    $orderRepository,
+    $resultRepository,
+    $resultValueRepository,
+    $parameterRepository,
+    $patientRepository,
+    $aliadoRepository,
+    $bacteriologoRepository,
+    $pdfGenerator,
+);
+
+$mailer = new ResultMailer(
+    getenv('MAIL_HOST')      ?: 'smtp.gmail.com',
+    (int) (getenv('MAIL_PORT') ?: 587),
+    getenv('MAIL_USERNAME')  ?: '',
+    getenv('MAIL_PASSWORD')  ?: '',
+    getenv('MAIL_FROM_NAME') ?: 'Laboratorio Clínico',
+);
+
 $authController = new AuthController(
     new LoginUseCase($userRepository, $tokenService),
-    new RegisterUserUseCase($userRepository, $aliadoRepository)
+    new RegisterUserUseCase($userRepository, $aliadoRepository, $passwordPolicy),
+    new PasswordResetUseCase(
+        $userRepository,
+        $mailer,
+        $passwordPolicy,
+        getenv('MAIL_FROM_NAME') ?: 'Laboratorio Clínico',
+    ),
+    $passwordPolicy,
 );
 
 $orderController = new OrderController(
@@ -132,11 +180,13 @@ $resultController = new ResultController(
         $parameterRepository,
         $resultValueRepository,
         $paramRangeRepository,
+        $antibiogramaRepository,
     ),
     $resultRepository,
     $resultValueRepository,
     $parameterRepository,
     $bacteriologoRepository,
+    $antibiogramaRepository,
 );
 
 $bacteriologoController = new BacteriologoController(
@@ -158,28 +208,6 @@ $aliadoOrderController = new AliadoOrderController(
 );
 
 $aliadoController = new AliadoController($aliadoRepository);
-
-// ── PDF y Email ───────────────────────────────────────────────────────────────
-$pdfGenerator = new ResultPdfGenerator();
-
-$generatePdfUseCase = new GenerateResultPdfUseCase(
-    $orderRepository,
-    $resultRepository,
-    $resultValueRepository,
-    $parameterRepository,
-    $patientRepository,
-    $aliadoRepository,
-    $bacteriologoRepository,
-    $pdfGenerator,
-);
-
-$mailer = new ResultMailer(
-    getenv('MAIL_HOST')      ?: 'smtp.gmail.com',
-    (int) (getenv('MAIL_PORT') ?: 587),
-    getenv('MAIL_USERNAME')  ?: '',
-    getenv('MAIL_PASSWORD')  ?: '',
-    getenv('MAIL_FROM_NAME') ?: 'Laboratorio Clínico',
-);
 
 $resultReportController = new ResultReportController(
     $generatePdfUseCase,
@@ -230,7 +258,10 @@ $app->addErrorMiddleware(
 );
 
 // ── Rutas públicas ────────────────────────────────────────────────────────────
-$app->post('/auth/login', [$authController, 'login']);
+$app->post('/auth/login',                        [$authController, 'login']);
+$app->get('/auth/password-policy',               [$authController, 'passwordPolicy']);
+$app->post('/auth/password-reset/request',       [$authController, 'requestPasswordReset']);
+$app->post('/auth/password-reset/confirm',       [$authController, 'confirmPasswordReset']);
 
 // ── Storage — servir archivos estáticos (firmas, logos, PDFs) ────────────────
 $app->get('/storage/{type}/{filename}', function (

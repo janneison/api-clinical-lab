@@ -29,12 +29,18 @@ class OrderController
         $role   = $auth['role'] ?? '';
         $params = $request->getQueryParams();
 
-        // Determinar restricción por aliado según rol
+        // Determinar restricción por aliado y/o centro de salud según rol
         if (in_array($role, [Role::ADMIN, Role::LAB_OPERATOR], true)) {
-            $aliadoIds = null;  // sin restricción
+            $aliadoIds       = null;   // sin restricción
+            $healthCenterIds = null;
+        } elseif ($role === Role::MEDICO) {
+            // El médico solo ve las órdenes de sus centros de salud asignados
+            $aliadoIds       = null;
+            $healthCenterIds = $auth['health_centers'] ?? [];
         } else {
             // aliado_operator y viewer solo ven sus aliados
-            $aliadoIds = $auth['aliados'] ?? [];
+            $aliadoIds       = $auth['aliados'] ?? [];
+            $healthCenterIds = null;
         }
 
         // Validar y parsear parámetros
@@ -61,13 +67,14 @@ class OrderController
         }
 
         $filter = new OrderFilterDto(
-            aliadoIds:  $aliadoIds,
-            estado:     $estado,
-            fechaDesde: $fechaDesde,
-            fechaHasta: $fechaHasta,
-            cups:       $cups,
-            page:       $page,
-            limit:      $limit,
+            aliadoIds:       $aliadoIds,
+            estado:          $estado,
+            fechaDesde:      $fechaDesde,
+            fechaHasta:      $fechaHasta,
+            cups:            $cups,
+            page:            $page,
+            limit:           $limit,
+            healthCenterIds: $healthCenterIds,
         );
 
         $orders = $this->orderRepository->findByFilter($filter);

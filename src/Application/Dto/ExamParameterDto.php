@@ -20,6 +20,7 @@ class ExamParameterDto
         public readonly int     $orden            = 0,
         public readonly string  $tipoResultado    = ExamParameter::TIPO_NUMERICO,
         public readonly ?string $etiquetaBooleano = null,
+        public readonly ?string $comentario       = null,
     ) {
     }
 }

@@ -235,6 +235,13 @@ BEGIN
         ALTER TABLE exam_parameters
             ADD COLUMN etiqueta_booleano ENUM('normal_alto','positivo_negativo','reactivo_no_reactivo') NULL AFTER tipo_resultado;
     END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'exam_parameters' AND COLUMN_NAME = 'comentario'
+    ) THEN
+        ALTER TABLE exam_parameters
+            ADD COLUMN comentario TEXT NULL AFTER etiqueta_booleano;
+    END IF;
 END //
 DELIMITER ;
 CALL sp_add_exam_param_cols();
@@ -345,6 +352,35 @@ CREATE TABLE IF NOT EXISTS patient_access_tokens (
     created_at  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_pat_patient FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE,
     INDEX idx_pat_patient (patient_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ============================================================
+-- Antibiogramas
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS antibiogramas (
+    id                INT AUTO_INCREMENT PRIMARY KEY,
+    lab_result_id     INT          NOT NULL,
+    bacteria_aislada  VARCHAR(255) NOT NULL,
+    gram              ENUM('positivo','negativo','n/a') NULL,
+    tiempo_incubacion VARCHAR(50)  NULL,
+    gram_orina        TEXT         NULL,
+    observaciones     TEXT         NULL,
+    created_at        TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_ab_result FOREIGN KEY (lab_result_id) REFERENCES lab_results(id) ON DELETE CASCADE,
+    INDEX idx_ab_result (lab_result_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS antibiograma_items (
+    id               INT AUTO_INCREMENT PRIMARY KEY,
+    antibiograma_id  INT          NOT NULL,
+    antibiotico      VARCHAR(150) NOT NULL,
+    cim              VARCHAR(20)  NULL,
+    sensibilidad     ENUM('S','I','R') NULL,
+    metodo           VARCHAR(100) NULL,
+    created_at       TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_abi_ab FOREIGN KEY (antibiograma_id) REFERENCES antibiogramas(id) ON DELETE CASCADE,
+    INDEX idx_abi_ab (antibiograma_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ============================================================

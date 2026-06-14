@@ -3,7 +3,10 @@
 namespace ClinicalLab\Infrastructure\Http\Controller;
 
 use ClinicalLab\Application\Dto\LabResultDto;
+use ClinicalLab\Application\Dto\AntibiogramaDto;
+use ClinicalLab\Application\Dto\AntibiogramaItemDto;
 use ClinicalLab\Application\UseCase\ValidateAndStoreResultUseCase;
+use ClinicalLab\Domain\Repository\AntibiogramaRepositoryInterface;
 use ClinicalLab\Domain\Repository\BacteriologoRepositoryInterface;
 use ClinicalLab\Domain\Repository\ExamParameterRepositoryInterface;
 use ClinicalLab\Domain\Repository\LabResultRepositoryInterface;
@@ -21,6 +24,7 @@ class ResultController
         private readonly LabResultValueRepositoryInterface $resultValueRepository,
         private readonly ExamParameterRepositoryInterface  $parameterRepository,
         private readonly BacteriologoRepositoryInterface   $bacteriologoRepository,
+        private readonly AntibiogramaRepositoryInterface   $antibiogramaRepository,
     ) {
     }
 
@@ -39,12 +43,47 @@ class ResultController
         }
 
         try {
+            // Parsear antibiogramas si vienen en el body
+            $antibiogramas = [];
+            if (!empty($body['antibiogramas']) && is_array($body['antibiogramas'])) {
+                foreach ($body['antibiogramas'] as $abRaw) {
+                    if (empty($abRaw['bacteriaAislada'])) {
+                        return $this->json($response, ['error' => 'Cada antibiograma requiere bacteriaAislada'], 422);
+                    }
+                    $items = [];
+                    foreach ($abRaw['items'] ?? [] as $itemRaw) {
+                        if (empty($itemRaw['antibiotico'])) {
+                            return $this->json($response, ['error' => 'Cada item de antibiograma requiere antibiotico'], 422);
+                        }
+                        $sens = strtoupper(trim($itemRaw['sensibilidad'] ?? ''));
+                        if ($sens !== '' && !in_array($sens, ['S', 'I', 'R'], true)) {
+                            return $this->json($response, ['error' => "Sensibilidad inválida: {$sens}. Use S, I o R"], 422);
+                        }
+                        $items[] = new AntibiogramaItemDto(
+                            $itemRaw['antibiotico'],
+                            $itemRaw['cim']    ?? null,
+                            $sens ?: null,
+                            $itemRaw['metodo'] ?? null,
+                        );
+                    }
+                    $antibiogramas[] = new AntibiogramaDto(
+                        $abRaw['bacteriaAislada'],
+                        $abRaw['gram']             ?? null,
+                        $abRaw['tiempoIncubacion'] ?? null,
+                        $abRaw['gramOrina']        ?? null,
+                        $abRaw['observaciones']    ?? null,
+                        $items,
+                    );
+                }
+            }
+
             $dto = new LabResultDto(
                 $body['idSolicitudKey'],
                 $body['cups'],
                 $body['values'],
                 $body['attachmentPath'] ?? null,
                 isset($body['bacteriologoId']) ? (int) $body['bacteriologoId'] : null,
+                $antibiogramas,
             );
 
             $this->useCase->execute($dto);
@@ -106,6 +145,7 @@ class ResultController
                 'valorMinRef'      => $paramMap[$v->getParameterId()]?->getValorMinRef(),
                 'valorMaxRef'      => $paramMap[$v->getParameterId()]?->getValorMaxRef(),
                 'etiquetaBooleano' => $paramMap[$v->getParameterId()]?->getEtiquetaBooleano(),
+                'comentario'       => $paramMap[$v->getParameterId()]?->getComentario(),
                 'flag'             => $v->getFlag(),
             ], $structuredValues);
 
@@ -127,12 +167,34 @@ class ResultController
                 }
             }
 
+            // Antibiogramas (cultivos)
+            $antibiogramasData = [];
+            $antibiogramas = $this->antibiogramaRepository->findByLabResultId($labResultId);
+            foreach ($antibiogramas as $ab) {
+                $antibiogramasData[] = [
+                    'id'               => $ab->getId(),
+                    'bacteriaAislada'  => $ab->getBacteriaAislada(),
+                    'esNegativo'       => $ab->isNegativo(),
+                    'gram'             => $ab->getGram(),
+                    'tiempoIncubacion' => $ab->getTiempoIncubacion(),
+                    'gramOrina'        => $ab->getGramOrina(),
+                    'observaciones'    => $ab->getObservaciones(),
+                    'items'            => array_map(fn($item) => [
+                        'antibiotico'  => $item->getAntibiotico(),
+                        'cim'          => $item->getCim(),
+                        'sensibilidad' => $item->getSensibilidad(),
+                        'metodo'       => $item->getMetodo(),
+                    ], $ab->getItems()),
+                ];
+            }
+
             $output[] = [
                 'labResultId'          => $labResultId,
                 'cups'                 => $cups,
                 'bacteriologo'         => $bacteriologoData,
                 'valuesJson'           => json_decode($row['values_json'], true),
                 'valoresEstructurados' => $valoresEstructurados,
+                'antibiogramas'        => $antibiogramasData,
                 'receivedAt'           => $row['received_at'],
             ];
         }

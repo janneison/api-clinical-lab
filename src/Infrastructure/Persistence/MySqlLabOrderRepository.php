@@ -218,6 +218,21 @@ class MySqlLabOrderRepository implements LabOrderRepositoryInterface
             $params['patient_id']  = $filter->patientId;
         }
 
+        // Filtro por centro de salud — null = sin restricción
+        if ($filter->healthCenterIds !== null) {
+            if (empty($filter->healthCenterIds)) {
+                $where[] = '1 = 0';
+            } else {
+                $placeholders = [];
+                foreach ($filter->healthCenterIds as $i => $id) {
+                    $key = "hc_{$i}";
+                    $placeholders[]  = ":{$key}";
+                    $params[$key]    = (int) $id;
+                }
+                $where[] = 'o.health_center_id IN (' . implode(', ', $placeholders) . ')';
+            }
+        }
+
         $sql = "{$select} FROM lab_orders o{$joins}";
 
         if (!empty($where)) {

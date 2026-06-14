@@ -10,7 +10,9 @@ class RegisterUserDto
         public readonly string $password,
         public readonly string $roleName,
         /** @var string[] */
-        public readonly array  $aliadoIds = []
+        public readonly array  $aliadoIds = [],
+        /** @var int[] */
+        public readonly array  $healthCenterIds = []
     ) {
     }
 }
